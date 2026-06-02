@@ -17,6 +17,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
   background:
     radial-gradient(circle at 15% 10%, rgba(244, 63, 94, 0.28), transparent 32rem),
     radial-gradient(circle at 85% 0%, rgba(249, 115, 22, 0.2), transparent 28rem),
@@ -42,7 +43,8 @@ a {
 .app-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 48px 0;
+  padding: calc(48px + env(safe-area-inset-top)) 0
+    calc(48px + env(safe-area-inset-bottom));
 }
 
 .hero {
@@ -507,7 +509,8 @@ textarea:focus {
 @media (max-width: 620px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
-    padding: 20px 0;
+    padding: calc(20px + env(safe-area-inset-top)) 0
+      calc(20px + env(safe-area-inset-bottom));
   }
 
   .hero__content,
