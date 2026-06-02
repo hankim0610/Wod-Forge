@@ -1,0 +1,480 @@
+import { useEffect, useMemo, useState } from "react";
+
+type Focus = "conditioning" | "strength" | "engine" | "skill";
+type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
+type Equipment =
+  | "bodyweight"
+  | "dumbbells"
+  | "barbell"
+  | "kettlebell"
+  | "rower"
+  | "jump rope";
+
+type Workout = {
+  id: string;
+  name: string;
+  type: WorkoutType;
+  timeCapMinutes: number;
+  focus: Focus;
+  intensity: "moderate" | "hard" | "send it";
+  equipment: Equipment[];
+  movements: string[];
+  workout: string[];
+  coachingCue: string;
+  scaling: string;
+};
+
+type WorkoutLog = {
+  score: string;
+  notes: string;
+  completed: boolean;
+};
+
+const workouts: Workout[] = [
+  {
+    id: "barbell-burner",
+    name: "Barbell Burner",
+    type: "For Time",
+    timeCapMinutes: 16,
+    focus: "conditioning",
+    intensity: "hard",
+    equipment: ["barbell", "jump rope"],
+    movements: ["Thrusters", "Double-unders", "Burpees"],
+    workout: [
+      "21-15-9 thrusters",
+      "42-30-18 double-unders",
+      "9-6-3 bar-facing burpees",
+    ],
+    coachingCue:
+      "Break the thrusters before your shoulders force you to, then stay smooth on the rope.",
+    scaling:
+      "Use light thrusters and single-unders at 2x reps if double-unders are inconsistent.",
+  },
+  {
+    id: "engine-room",
+    name: "Engine Room",
+    type: "AMRAP",
+    timeCapMinutes: 20,
+    focus: "engine",
+    intensity: "moderate",
+    equipment: ["rower", "kettlebell", "bodyweight"],
+    movements: ["Rowing", "Kettlebell swings", "Box step-overs"],
+    workout: [
+      "250 meter row",
+      "16 kettlebell swings",
+      "12 box step-overs",
+      "8 hand-release push-ups",
+    ],
+    coachingCue:
+      "Hold a pace you can repeat after minute 12; this should feel like controlled pressure.",
+    scaling:
+      "Reduce the row to 200 meters and use Russian swings if overhead volume is too high.",
+  },
+  {
+    id: "dumbbell-density",
+    name: "Dumbbell Density",
+    type: "EMOM",
+    timeCapMinutes: 18,
+    focus: "strength",
+    intensity: "hard",
+    equipment: ["dumbbells", "bodyweight"],
+    movements: ["Dumbbell front squats", "Strict press", "Sit-ups"],
+    workout: [
+      "Minute 1: 12 dumbbell front squats",
+      "Minute 2: 10 strict dumbbell presses",
+      "Minute 3: 14 sit-ups",
+      "Repeat for 6 rounds",
+    ],
+    coachingCue:
+      "Choose dumbbells that let you finish the first two rounds with 15 seconds to spare.",
+    scaling:
+      "Lower reps to 8-8-12 or use one dumbbell in goblet and single-arm press variations.",
+  },
+  {
+    id: "gymnastics-grind",
+    name: "Gymnastics Grind",
+    type: "AMRAP",
+    timeCapMinutes: 15,
+    focus: "skill",
+    intensity: "hard",
+    equipment: ["bodyweight", "jump rope"],
+    movements: ["Pull-ups", "Push-ups", "Air squats", "Double-unders"],
+    workout: [
+      "5 pull-ups",
+      "10 push-ups",
+      "15 air squats",
+      "30 double-unders",
+    ],
+    coachingCue:
+      "Keep pull-ups small and crisp; the workout is won by avoiding long breaks.",
+    scaling:
+      "Sub ring rows for pull-ups, knee push-ups for push-ups, and single-unders for doubles.",
+  },
+  {
+    id: "posterior-chain",
+    name: "Posterior Chain Primer",
+    type: "Strength",
+    timeCapMinutes: 22,
+    focus: "strength",
+    intensity: "moderate",
+    equipment: ["barbell", "kettlebell"],
+    movements: ["Deadlifts", "Kettlebell lunges", "Plank holds"],
+    workout: [
+      "Every 4 minutes for 5 rounds:",
+      "5 deadlifts at challenging load",
+      "12 front-rack kettlebell reverse lunges",
+      "45 second plank hold",
+    ],
+    coachingCue:
+      "Treat each deadlift set as strength work: brace first, move the bar with intent.",
+    scaling:
+      "Use 5 rounds of 8 Romanian deadlifts if heavy pulls are not appropriate today.",
+  },
+  {
+    id: "hotel-hustle",
+    name: "Hotel Hustle",
+    type: "For Time",
+    timeCapMinutes: 14,
+    focus: "conditioning",
+    intensity: "send it",
+    equipment: ["bodyweight"],
+    movements: ["Burpees", "Air squats", "Mountain climbers"],
+    workout: [
+      "10-9-8-7-6-5-4-3-2-1",
+      "Burpees",
+      "Air squats",
+      "After each round: 20 mountain climbers",
+    ],
+    coachingCue:
+      "Move immediately between stations and breathe through the squats to recover.",
+    scaling:
+      "Step down and step up on burpees, or start at 8 reps instead of 10.",
+  },
+];
+
+const focusOptions: Array<{ value: Focus | "any"; label: string }> = [
+  { value: "any", label: "Any focus" },
+  { value: "conditioning", label: "Conditioning" },
+  { value: "strength", label: "Strength" },
+  { value: "engine", label: "Engine" },
+  { value: "skill", label: "Skill" },
+];
+
+const equipmentOptions: Array<{ value: Equipment | "any"; label: string }> = [
+  { value: "any", label: "Any equipment" },
+  { value: "bodyweight", label: "Bodyweight" },
+  { value: "dumbbells", label: "Dumbbells" },
+  { value: "barbell", label: "Barbell" },
+  { value: "kettlebell", label: "Kettlebell" },
+  { value: "rower", label: "Rower" },
+  { value: "jump rope", label: "Jump rope" },
+];
+
+const logStorageKey = "wod-forge-log";
+
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
+  return `${minutes}:${seconds}`;
+}
+
+function getInitialLog(): Record<string, WorkoutLog> {
+  try {
+    const savedLog = window.localStorage.getItem(logStorageKey);
+    return savedLog ? JSON.parse(savedLog) : {};
+  } catch {
+    return {};
+  }
+}
+
+function App() {
+  const [selectedFocus, setSelectedFocus] = useState<Focus | "any">("any");
+  const [selectedEquipment, setSelectedEquipment] =
+    useState<Equipment | "any">("any");
+  const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
+  const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
+  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
+    ?? workouts[0];
+  const [secondsLeft, setSecondsLeft] = useState(
+    activeWorkout.timeCapMinutes * 60,
+  );
+
+  const filteredWorkouts = useMemo(() => {
+    return workouts.filter((workout) => {
+      const focusMatch =
+        selectedFocus === "any" || workout.focus === selectedFocus;
+      const equipmentMatch =
+        selectedEquipment === "any" ||
+        workout.equipment.includes(selectedEquipment);
+
+      return focusMatch && equipmentMatch;
+    });
+  }, [selectedEquipment, selectedFocus]);
+
+  const currentLog = logs[activeWorkout.id] ?? {
+    completed: false,
+    notes: "",
+    score: "",
+  };
+
+  const completedCount = Object.values(logs).filter(
+    (entry) => entry.completed,
+  ).length;
+  const availableEquipmentCount = new Set(
+    workouts.flatMap((workout) => workout.equipment),
+  ).size;
+
+  useEffect(() => {
+    window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
+  }, [logs]);
+
+  useEffect(() => {
+    setIsTimerRunning(false);
+    setSecondsLeft(activeWorkout.timeCapMinutes * 60);
+  }, [activeWorkout.id, activeWorkout.timeCapMinutes]);
+
+  useEffect(() => {
+    if (!isTimerRunning || secondsLeft === 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setSecondsLeft((currentSeconds) => Math.max(currentSeconds - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isTimerRunning, secondsLeft]);
+
+  function chooseWorkout(workoutId: string) {
+    setActiveWorkoutId(workoutId);
+  }
+
+  function generateWorkout() {
+    const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
+    const randomIndex = Math.floor(Math.random() * options.length);
+    setActiveWorkoutId(options[randomIndex].id);
+  }
+
+  function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
+    setLogs((currentLogs) => ({
+      ...currentLogs,
+      [activeWorkout.id]: {
+        ...currentLog,
+        ...nextLog,
+      },
+    }));
+  }
+
+  return (
+    <main className="app-shell">
+      <section className="hero">
+        <div className="hero__content">
+          <p className="eyebrow">CrossFit-style training planner</p>
+          <h1>Forge your next WOD with intent.</h1>
+          <p className="hero__lede">
+            Filter workouts by focus and equipment, generate a fresh session,
+            run the clock, and keep track of your score and notes.
+          </p>
+          <div className="hero__actions">
+            <button className="button button--primary" onClick={generateWorkout}>
+              Generate WOD
+            </button>
+            <a className="button button--ghost" href="#library">
+              Browse library
+            </a>
+          </div>
+        </div>
+
+        <div className="hero-card" aria-label="Training summary">
+          <span className="hero-card__label">Today&apos;s pick</span>
+          <strong>{activeWorkout.name}</strong>
+          <span>{activeWorkout.type}</span>
+          <div className="metric-grid">
+            <div>
+              <span>{workouts.length}</span>
+              <small>WODs</small>
+            </div>
+            <div>
+              <span>{completedCount}</span>
+              <small>Logged</small>
+            </div>
+            <div>
+              <span>{availableEquipmentCount}</span>
+              <small>Gear types</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="controls" aria-label="Workout filters">
+        <label>
+          Focus
+          <select
+            value={selectedFocus}
+            onChange={(event) =>
+              setSelectedFocus(event.target.value as Focus | "any")
+            }
+          >
+            {focusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          Equipment
+          <select
+            value={selectedEquipment}
+            onChange={(event) =>
+              setSelectedEquipment(event.target.value as Equipment | "any")
+            }
+          >
+            {equipmentOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button className="button button--secondary" onClick={generateWorkout}>
+          Random from filters
+        </button>
+      </section>
+
+      <section className="dashboard">
+        <article className="workout-panel">
+          <div className="section-heading">
+            <p className="eyebrow">Workout briefing</p>
+            <h2>{activeWorkout.name}</h2>
+          </div>
+
+          <div className="tag-row">
+            <span>{activeWorkout.type}</span>
+            <span>{activeWorkout.focus}</span>
+            <span>{activeWorkout.intensity}</span>
+            <span>{activeWorkout.timeCapMinutes} min cap</span>
+          </div>
+
+          <ol className="workout-steps">
+            {activeWorkout.workout.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
+
+          <div className="coach-note">
+            <h3>Coach&apos;s cue</h3>
+            <p>{activeWorkout.coachingCue}</p>
+          </div>
+
+          <div className="coach-note coach-note--muted">
+            <h3>Scaling option</h3>
+            <p>{activeWorkout.scaling}</p>
+          </div>
+
+          <div className="equipment-list">
+            {activeWorkout.equipment.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </article>
+
+        <aside className="side-stack">
+          <article className="timer-card">
+            <p className="eyebrow">WOD clock</p>
+            <div className="timer" aria-live="polite">
+              {formatTime(secondsLeft)}
+            </div>
+            <div className="timer-actions">
+              <button
+                className="button button--primary"
+                onClick={() => setIsTimerRunning((running) => !running)}
+              >
+                {isTimerRunning ? "Pause" : "Start"}
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() => {
+                  setIsTimerRunning(false);
+                  setSecondsLeft(activeWorkout.timeCapMinutes * 60);
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </article>
+
+          <article className="log-card">
+            <p className="eyebrow">Training log</p>
+            <label>
+              Score
+              <input
+                value={currentLog.score}
+                onChange={(event) =>
+                  updateWorkoutLog({ score: event.target.value })
+                }
+                placeholder="Rounds, reps, time, or load"
+              />
+            </label>
+            <label>
+              Notes
+              <textarea
+                value={currentLog.notes}
+                onChange={(event) =>
+                  updateWorkoutLog({ notes: event.target.value })
+                }
+                placeholder="How did it feel? What will you adjust next time?"
+              />
+            </label>
+            <label className="checkbox-row">
+              <input
+                type="checkbox"
+                checked={currentLog.completed}
+                onChange={(event) =>
+                  updateWorkoutLog({ completed: event.target.checked })
+                }
+              />
+              Mark workout complete
+            </label>
+          </article>
+        </aside>
+      </section>
+
+      <section className="library" id="library">
+        <div className="section-heading">
+          <p className="eyebrow">Workout library</p>
+          <h2>{filteredWorkouts.length || workouts.length} workouts ready</h2>
+        </div>
+
+        <div className="library-grid">
+          {(filteredWorkouts.length > 0 ? filteredWorkouts : workouts).map(
+            (workout) => (
+              <button
+                className={`library-card${
+                  workout.id === activeWorkout.id ? " is-active" : ""
+                }`}
+                key={workout.id}
+                onClick={() => chooseWorkout(workout.id)}
+              >
+                <span>{workout.type}</span>
+                <strong>{workout.name}</strong>
+                <small>
+                  {workout.timeCapMinutes} min · {workout.focus}
+                </small>
+                <small>{workout.movements.join(" / ")}</small>
+              </button>
+            ),
+          )}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+export default App;
