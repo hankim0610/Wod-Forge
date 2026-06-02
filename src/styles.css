@@ -17,6 +17,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  -webkit-tap-highlight-color: transparent;
   background:
     radial-gradient(circle at 15% 10%, rgba(244, 63, 94, 0.28), transparent 32rem),
     radial-gradient(circle at 85% 0%, rgba(249, 115, 22, 0.2), transparent 28rem),
@@ -42,6 +43,8 @@ a {
 .app-shell {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
+  padding: calc(48px + env(safe-area-inset-top)) 0
+    calc(48px + env(safe-area-inset-bottom));
   padding: 48px 0;
 }
 
@@ -141,6 +144,12 @@ h3 {
 
 .button:hover {
   transform: translateY(-1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .button--primary {
@@ -365,6 +374,48 @@ textarea:focus {
   gap: 24px;
 }
 
+.timer-modes {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.timer-mode {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.055);
+  text-align: left;
+}
+
+.timer-mode.is-active {
+  border-color: rgba(251, 113, 133, 0.78);
+  background: rgba(251, 113, 133, 0.13);
+}
+
+.timer-mode strong,
+.timer-mode span {
+  display: block;
+}
+
+.timer-mode span {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.timer-label {
+  margin: 22px 0 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timer {
+  margin: 4px 0 14px;
 .timer {
   margin: 18px 0;
   font-size: clamp(3.4rem, 10vw, 5.2rem);
@@ -372,6 +423,15 @@ textarea:focus {
   font-variant-numeric: tabular-nums;
   font-weight: 950;
   letter-spacing: -0.06em;
+}
+
+.timer-details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .log-card {
@@ -452,6 +512,8 @@ textarea:focus {
 @media (max-width: 620px) {
   .app-shell {
     width: min(100% - 20px, 1180px);
+    padding: calc(20px + env(safe-area-inset-top)) 0
+      calc(20px + env(safe-area-inset-bottom));
     padding: 20px 0;
   }
 

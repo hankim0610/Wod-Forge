@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
+type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -170,6 +171,36 @@ const equipmentOptions: Array<{ value: Equipment | "any"; label: string }> = [
   { value: "jump rope", label: "Jump rope" },
 ];
 
+const timerModes: Array<{
+  value: TimerMode;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "AMRAP",
+    label: "AMRAP",
+    description: "Countdown for as many rounds and reps as possible.",
+  },
+  {
+    value: "EMOM",
+    label: "EMOM",
+    description: "Minute-by-minute intervals with a full clock cap.",
+  },
+  {
+    value: "For Time",
+    label: "For Time",
+    description: "Stopwatch for completing the work before the cap.",
+  },
+];
+
+const logStorageKey = "wod-forge-log";
+
+function formatTime(totalSeconds: number) {
+  const safeSeconds = Math.max(totalSeconds, 0);
+  const minutes = Math.floor(safeSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (safeSeconds % 60).toString().padStart(2, "0");
 const logStorageKey = "wod-forge-log";
 
 function formatTime(totalSeconds: number) {
@@ -179,6 +210,14 @@ function formatTime(totalSeconds: number) {
   const seconds = (totalSeconds % 60).toString().padStart(2, "0");
 
   return `${minutes}:${seconds}`;
+}
+
+function getWorkoutTimerMode(workoutType: WorkoutType): TimerMode {
+  return workoutType === "AMRAP" ||
+    workoutType === "EMOM" ||
+    workoutType === "For Time"
+    ? workoutType
+    : "For Time";
 }
 
 function getInitialLog(): Record<string, WorkoutLog> {
@@ -197,6 +236,12 @@ function App() {
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [activeTimerMode, setActiveTimerMode] = useState<TimerMode>(
+    getWorkoutTimerMode(workouts[0].type),
+  );
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
+    ?? workouts[0];
   const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
     ?? workouts[0];
   const [secondsLeft, setSecondsLeft] = useState(
@@ -227,12 +272,48 @@ function App() {
   const availableEquipmentCount = new Set(
     workouts.flatMap((workout) => workout.equipment),
   ).size;
+  const workoutDurationSeconds = activeWorkout.timeCapMinutes * 60;
+  const remainingSeconds = Math.max(workoutDurationSeconds - elapsedSeconds, 0);
+  const timerHasFinished = elapsedSeconds >= workoutDurationSeconds;
+  const emomCurrentMinute = Math.min(
+    Math.floor(elapsedSeconds / 60) + 1,
+    activeWorkout.timeCapMinutes,
+  );
+  const emomIntervalRemaining = timerHasFinished
+    ? 0
+    : 60 - (elapsedSeconds % 60);
+  const timerDisplay =
+    activeTimerMode === "For Time"
+      ? formatTime(elapsedSeconds)
+      : activeTimerMode === "EMOM"
+        ? formatTime(emomIntervalRemaining)
+        : formatTime(remainingSeconds);
+  const timerLabel =
+    activeTimerMode === "For Time"
+      ? "Elapsed time"
+      : activeTimerMode === "EMOM"
+        ? "Next minute starts in"
+        : "Time remaining";
+  const timerStatus = timerHasFinished
+    ? "Time cap reached"
+    : activeTimerMode === "For Time"
+      ? `Finish the work before the ${activeWorkout.timeCapMinutes}:00 cap.`
+      : activeTimerMode === "EMOM"
+        ? `Minute ${emomCurrentMinute} of ${activeWorkout.timeCapMinutes}.`
+        : "Keep accumulating rounds and reps until the clock expires.";
 
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
   }, [logs]);
 
   useEffect(() => {
+    setActiveTimerMode(getWorkoutTimerMode(activeWorkout.type));
+    setIsTimerRunning(false);
+    setElapsedSeconds(0);
+  }, [activeWorkout.id, activeWorkout.type, activeWorkout.timeCapMinutes]);
+
+  useEffect(() => {
+    if (!isTimerRunning || timerHasFinished) {
     setIsTimerRunning(false);
     setSecondsLeft(activeWorkout.timeCapMinutes * 60);
   }, [activeWorkout.id, activeWorkout.timeCapMinutes]);
@@ -243,6 +324,19 @@ function App() {
     }
 
     const intervalId = window.setInterval(() => {
+      setElapsedSeconds((currentSeconds) =>
+        Math.min(currentSeconds + 1, workoutDurationSeconds),
+      );
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isTimerRunning, timerHasFinished, workoutDurationSeconds]);
+
+  useEffect(() => {
+    if (timerHasFinished) {
+      setIsTimerRunning(false);
+    }
+  }, [timerHasFinished]);
       setSecondsLeft((currentSeconds) => Math.max(currentSeconds - 1, 0));
     }, 1000);
 
@@ -257,6 +351,12 @@ function App() {
     const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
     const randomIndex = Math.floor(Math.random() * options.length);
     setActiveWorkoutId(options[randomIndex].id);
+  }
+
+  function selectTimerMode(mode: TimerMode) {
+    setActiveTimerMode(mode);
+    setIsTimerRunning(false);
+    setElapsedSeconds(0);
   }
 
   function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
@@ -388,12 +488,41 @@ function App() {
         <aside className="side-stack">
           <article className="timer-card">
             <p className="eyebrow">WOD clock</p>
+            <div className="timer-modes" aria-label="Timer mode">
+              {timerModes.map((mode) => (
+                <button
+                  className={`timer-mode${
+                    activeTimerMode === mode.value ? " is-active" : ""
+                  }`}
+                  key={mode.value}
+                  onClick={() => selectTimerMode(mode.value)}
+                  type="button"
+                >
+                  <strong>{mode.label}</strong>
+                  <span>{mode.description}</span>
+                </button>
+              ))}
+            </div>
+
+            <p className="timer-label">{timerLabel}</p>
+            <div className="timer" aria-live="polite">
+              {timerDisplay}
+            </div>
+            <div className="timer-details">
+              <span>{timerStatus}</span>
+              <span>Elapsed {formatTime(elapsedSeconds)}</span>
+              {activeTimerMode !== "For Time" && (
+                <span>Remaining {formatTime(remainingSeconds)}</span>
+              )}
             <div className="timer" aria-live="polite">
               {formatTime(secondsLeft)}
             </div>
             <div className="timer-actions">
               <button
                 className="button button--primary"
+                disabled={timerHasFinished}
+                onClick={() => setIsTimerRunning((running) => !running)}
+                type="button"
                 onClick={() => setIsTimerRunning((running) => !running)}
               >
                 {isTimerRunning ? "Pause" : "Start"}
@@ -402,6 +531,9 @@ function App() {
                 className="button button--ghost"
                 onClick={() => {
                   setIsTimerRunning(false);
+                  setElapsedSeconds(0);
+                }}
+                type="button"
                   setSecondsLeft(activeWorkout.timeCapMinutes * 60);
                 }}
               >
