@@ -143,6 +143,12 @@ h3 {
   transform: translateY(-1px);
 }
 
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
 .button--primary {
   color: #101010;
   background: linear-gradient(135deg, #fb7185, #f97316);
@@ -365,13 +371,62 @@ textarea:focus {
   gap: 24px;
 }
 
+.timer-modes {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.timer-mode {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 14px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.055);
+  text-align: left;
+}
+
+.timer-mode.is-active {
+  border-color: rgba(251, 113, 133, 0.78);
+  background: rgba(251, 113, 133, 0.13);
+}
+
+.timer-mode strong,
+.timer-mode span {
+  display: block;
+}
+
+.timer-mode span {
+  margin-top: 4px;
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+.timer-label {
+  margin: 22px 0 0;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .timer {
-  margin: 18px 0;
+  margin: 4px 0 14px;
   font-size: clamp(3.4rem, 10vw, 5.2rem);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   font-weight: 950;
   letter-spacing: -0.06em;
+}
+
+.timer-details {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  font-weight: 700;
 }
 
 .log-card {
