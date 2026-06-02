@@ -45,6 +45,7 @@ a {
   margin: 0 auto;
   padding: calc(48px + env(safe-area-inset-top)) 0
     calc(48px + env(safe-area-inset-bottom));
+  padding: 48px 0;
 }
 
 .hero {
@@ -415,6 +416,8 @@ textarea:focus {
 
 .timer {
   margin: 4px 0 14px;
+.timer {
+  margin: 18px 0;
   font-size: clamp(3.4rem, 10vw, 5.2rem);
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -511,6 +514,7 @@ textarea:focus {
     width: min(100% - 20px, 1180px);
     padding: calc(20px + env(safe-area-inset-top)) 0
       calc(20px + env(safe-area-inset-bottom));
+    padding: 20px 0;
   }
 
   .hero__content,

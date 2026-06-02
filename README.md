@@ -11,6 +11,8 @@ logging training sessions.
 - Run AMRAP, EMOM, and For Time clocks for the selected workout
 - Save score, notes, and completion status in local browser storage
 - Package the app for mobile with Capacitor
+- Run a built-in countdown clock for the selected workout
+- Save score, notes, and completion status in local browser storage
 
 ## Getting started
 

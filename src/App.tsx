@@ -201,6 +201,13 @@ function formatTime(totalSeconds: number) {
     .toString()
     .padStart(2, "0");
   const seconds = (safeSeconds % 60).toString().padStart(2, "0");
+const logStorageKey = "wod-forge-log";
+
+function formatTime(totalSeconds: number) {
+  const minutes = Math.floor(totalSeconds / 60)
+    .toString()
+    .padStart(2, "0");
+  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
 
   return `${minutes}:${seconds}`;
 }
@@ -235,6 +242,11 @@ function App() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
     ?? workouts[0];
+  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
+    ?? workouts[0];
+  const [secondsLeft, setSecondsLeft] = useState(
+    activeWorkout.timeCapMinutes * 60,
+  );
 
   const filteredWorkouts = useMemo(() => {
     return workouts.filter((workout) => {
@@ -302,6 +314,12 @@ function App() {
 
   useEffect(() => {
     if (!isTimerRunning || timerHasFinished) {
+    setIsTimerRunning(false);
+    setSecondsLeft(activeWorkout.timeCapMinutes * 60);
+  }, [activeWorkout.id, activeWorkout.timeCapMinutes]);
+
+  useEffect(() => {
+    if (!isTimerRunning || secondsLeft === 0) {
       return;
     }
 
@@ -319,6 +337,11 @@ function App() {
       setIsTimerRunning(false);
     }
   }, [timerHasFinished]);
+      setSecondsLeft((currentSeconds) => Math.max(currentSeconds - 1, 0));
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isTimerRunning, secondsLeft]);
 
   function chooseWorkout(workoutId: string) {
     setActiveWorkoutId(workoutId);
@@ -491,6 +514,8 @@ function App() {
               {activeTimerMode !== "For Time" && (
                 <span>Remaining {formatTime(remainingSeconds)}</span>
               )}
+            <div className="timer" aria-live="polite">
+              {formatTime(secondsLeft)}
             </div>
             <div className="timer-actions">
               <button
@@ -498,6 +523,7 @@ function App() {
                 disabled={timerHasFinished}
                 onClick={() => setIsTimerRunning((running) => !running)}
                 type="button"
+                onClick={() => setIsTimerRunning((running) => !running)}
               >
                 {isTimerRunning ? "Pause" : "Start"}
               </button>
@@ -508,6 +534,8 @@ function App() {
                   setElapsedSeconds(0);
                 }}
                 type="button"
+                  setSecondsLeft(activeWorkout.timeCapMinutes * 60);
+                }}
               >
                 Reset
               </button>
