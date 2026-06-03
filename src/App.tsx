@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 
 type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
+type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
+type AppTab = "today" | "clock" | "library" | "prs" | "log";
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -29,6 +32,20 @@ type WorkoutLog = {
   score: string;
   notes: string;
   completed: boolean;
+  completedAt?: string;
+};
+
+type StrengthUnit = "lb" | "kg";
+
+type StrengthPR = {
+  id: string;
+  lift: string;
+  weight: number;
+  unit: StrengthUnit;
+  reps: number;
+  date: string;
+  notes: string;
+  createdAt: string;
 };
 
 const workouts: Workout[] = [
@@ -193,7 +210,31 @@ const timerModes: Array<{
   },
 ];
 
+const appTabs: Array<{ value: AppTab; label: string; description: string }> = [
+  { value: "today", label: "Today", description: "WOD briefing" },
+  { value: "clock", label: "Clock", description: "Workout timers" },
+  { value: "library", label: "Library", description: "Find workouts" },
+  { value: "prs", label: "PRs", description: "Strength records" },
+  { value: "log", label: "Log", description: "Score and notes" },
+];
+
+const strengthLiftOptions = [
+  "Bench Press",
+  "Back Squat",
+  "Deadlift",
+  "Clean",
+  "Clean and Jerk",
+  "Snatch",
+  "Overhead Squat",
+  "Front Squat",
+  "Strict Press",
+  "Push Press",
+  "Thruster",
+] as const;
+
+const prepDurationSeconds = 10;
 const logStorageKey = "wod-forge-log";
+const strengthRecordsStorageKey = "wod-forge-strength-prs";
 
 function formatTime(totalSeconds: number) {
   const safeSeconds = Math.max(totalSeconds, 0);
@@ -201,13 +242,6 @@ function formatTime(totalSeconds: number) {
     .toString()
     .padStart(2, "0");
   const seconds = (safeSeconds % 60).toString().padStart(2, "0");
-const logStorageKey = "wod-forge-log";
-
-function formatTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (totalSeconds % 60).toString().padStart(2, "0");
 
   return `${minutes}:${seconds}`;
 }
@@ -220,13 +254,60 @@ function getWorkoutTimerMode(workoutType: WorkoutType): TimerMode {
     : "For Time";
 }
 
+function getDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getStartOfWeek(date: Date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + diff);
+
+  return start;
+}
+
 function getInitialLog(): Record<string, WorkoutLog> {
   try {
     const savedLog = window.localStorage.getItem(logStorageKey);
-    return savedLog ? JSON.parse(savedLog) : {};
+    const parsedLog = savedLog ? JSON.parse(savedLog) : {};
+    const todayKey = getDateKey(new Date());
+
+    return Object.fromEntries(
+      Object.entries(parsedLog as Record<string, WorkoutLog>).map(
+        ([workoutId, log]) => [
+          workoutId,
+          log.completed && !log.completedAt
+            ? { ...log, completedAt: todayKey }
+            : log,
+        ],
+      ),
+    );
   } catch {
     return {};
   }
+}
+
+function getInitialStrengthRecords(): StrengthPR[] {
+  try {
+    const savedRecords = window.localStorage.getItem(strengthRecordsStorageKey);
+    return savedRecords ? JSON.parse(savedRecords) : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeWeightToPounds(weight: number, unit: StrengthUnit) {
+  return unit === "kg" ? weight * 2.20462 : weight;
+}
+
+function formatStrengthWeight(record: StrengthPR) {
+  return `${record.weight} ${record.unit}`;
 }
 
 function App() {
@@ -234,19 +315,31 @@ function App() {
   const [selectedEquipment, setSelectedEquipment] =
     useState<Equipment | "any">("any");
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
+  const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
+  const [strengthRecords, setStrengthRecords] = useState<StrengthPR[]>(
+    getInitialStrengthRecords,
+  );
+  const [selectedStrengthLift, setSelectedStrengthLift] = useState<string>(
+    strengthLiftOptions[0],
+  );
+  const [strengthWeight, setStrengthWeight] = useState("");
+  const [strengthUnit, setStrengthUnit] = useState<StrengthUnit>("lb");
+  const [strengthReps, setStrengthReps] = useState("1");
+  const [strengthDate, setStrengthDate] = useState(getDateKey(new Date()));
+  const [strengthNotes, setStrengthNotes] = useState("");
+  const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
   const [activeTimerMode, setActiveTimerMode] = useState<TimerMode>(
     getWorkoutTimerMode(workouts[0].type),
   );
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
-    ?? workouts[0];
-  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
-    ?? workouts[0];
-  const [secondsLeft, setSecondsLeft] = useState(
-    activeWorkout.timeCapMinutes * 60,
+  const [prepSecondsLeft, setPrepSecondsLeft] = useState(prepDurationSeconds);
+  const [customDurationMinutes, setCustomDurationMinutes] = useState(
+    workouts[0].timeCapMinutes,
   );
+  const [emomIntervalMinutes, setEmomIntervalMinutes] = useState(1);
+  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
+    ?? workouts[0];
 
   const filteredWorkouts = useMemo(() => {
     return workouts.filter((workout) => {
@@ -265,235 +358,385 @@ function App() {
     notes: "",
     score: "",
   };
+  const completedWorkouts = Object.entries(logs)
+    .filter(([, entry]) => entry.completed && entry.completedAt)
+    .map(([workoutId, entry]) => ({
+      log: entry,
+      workout: workouts.find((workout) => workout.id === workoutId),
+      workoutId,
+    }));
+  const completionsByDate = completedWorkouts.reduce<Record<string, typeof completedWorkouts>>(
+    (dates, entry) => {
+      const completedAt = entry.log.completedAt;
 
-  const completedCount = Object.values(logs).filter(
-    (entry) => entry.completed,
-  ).length;
+      if (!completedAt) {
+        return dates;
+      }
+
+      return {
+        ...dates,
+        [completedAt]: [...(dates[completedAt] ?? []), entry],
+      };
+    },
+    {},
+  );
+  const todayKey = getDateKey(new Date());
+  const weekStart = getStartOfWeek(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+
+    return date;
+  });
+  const workoutsCompletedThisWeek = completedWorkouts.filter(({ log }) => {
+    if (!log.completedAt) {
+      return false;
+    }
+
+    const completedDate = new Date(`${log.completedAt}T00:00:00`);
+    return completedDate >= weekStart && completedDate <= weekEnd;
+  });
+  const completedCount = completedWorkouts.length;
+  const sortedStrengthRecords = [...strengthRecords].sort((a, b) => {
+    const dateSort = b.date.localeCompare(a.date);
+    return dateSort === 0 ? b.createdAt.localeCompare(a.createdAt) : dateSort;
+  });
+  const selectedStrengthRecords = sortedStrengthRecords.filter(
+    (record) => record.lift === selectedStrengthLift,
+  );
+  const heaviestStrengthRecordByLift = strengthRecords.reduce<
+    Record<string, StrengthPR>
+  >((records, record) => {
+    const currentRecord = records[record.lift];
+    const currentWeight = currentRecord
+      ? normalizeWeightToPounds(currentRecord.weight, currentRecord.unit)
+      : 0;
+    const recordWeight = normalizeWeightToPounds(record.weight, record.unit);
+
+    if (!currentRecord || recordWeight > currentWeight) {
+      return {
+        ...records,
+        [record.lift]: record,
+      };
+    }
+
+    return records;
+  }, {});
+  const strengthRecordCount = strengthRecords.length;
   const availableEquipmentCount = new Set(
     workouts.flatMap((workout) => workout.equipment),
   ).size;
-  const workoutDurationSeconds = activeWorkout.timeCapMinutes * 60;
+  const sanitizedDurationMinutes = Math.max(1, customDurationMinutes);
+  const sanitizedEmomIntervalMinutes = Math.max(1, emomIntervalMinutes);
+  const workoutDurationSeconds = sanitizedDurationMinutes * 60;
+  const emomIntervalSeconds = sanitizedEmomIntervalMinutes * 60;
   const remainingSeconds = Math.max(workoutDurationSeconds - elapsedSeconds, 0);
-  const timerHasFinished = elapsedSeconds >= workoutDurationSeconds;
-  const emomCurrentMinute = Math.min(
-    Math.floor(elapsedSeconds / 60) + 1,
-    activeWorkout.timeCapMinutes,
+  const timerHasFinished = timerPhase === "finished";
+  const isTimerActive = timerPhase === "preparing" || timerPhase === "running";
+  const totalEmomIntervals = Math.ceil(
+    workoutDurationSeconds / emomIntervalSeconds,
   );
-  const emomIntervalRemaining = timerHasFinished
-    ? 0
-    : 60 - (elapsedSeconds % 60);
-  const timerDisplay =
+  const emomCurrentInterval = Math.min(
+    Math.floor(elapsedSeconds / emomIntervalSeconds) + 1,
+    totalEmomIntervals,
+  );
+  const emomIntervalRemaining =
+    timerHasFinished || elapsedSeconds === workoutDurationSeconds
+      ? 0
+      : emomIntervalSeconds - (elapsedSeconds % emomIntervalSeconds);
+  const activeClockDisplay =
     activeTimerMode === "For Time"
       ? formatTime(elapsedSeconds)
       : activeTimerMode === "EMOM"
         ? formatTime(emomIntervalRemaining)
         : formatTime(remainingSeconds);
+  const timerDisplay =
+    timerPhase === "preparing" ? formatTime(prepSecondsLeft) : activeClockDisplay;
   const timerLabel =
-    activeTimerMode === "For Time"
-      ? "Elapsed time"
-      : activeTimerMode === "EMOM"
-        ? "Next minute starts in"
-        : "Time remaining";
-  const timerStatus = timerHasFinished
-    ? "Time cap reached"
-    : activeTimerMode === "For Time"
-      ? `Finish the work before the ${activeWorkout.timeCapMinutes}:00 cap.`
-      : activeTimerMode === "EMOM"
-        ? `Minute ${emomCurrentMinute} of ${activeWorkout.timeCapMinutes}.`
-        : "Keep accumulating rounds and reps until the clock expires.";
+    timerPhase === "preparing"
+      ? "Get ready"
+      : activeTimerMode === "For Time"
+        ? "Elapsed time"
+        : activeTimerMode === "EMOM"
+          ? "Next interval starts in"
+          : "Time remaining";
+  const timerStatus =
+    timerPhase === "preparing"
+      ? "Your workout starts after the 10 second prep countdown."
+      : timerHasFinished
+        ? "Time cap reached"
+        : activeTimerMode === "For Time"
+          ? `Finish the work before the ${sanitizedDurationMinutes}:00 cap.`
+          : activeTimerMode === "EMOM"
+            ? `Interval ${emomCurrentInterval} of ${totalEmomIntervals} (${sanitizedEmomIntervalMinutes} min each).`
+            : "Keep accumulating rounds and reps until the clock expires.";
 
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
   }, [logs]);
 
   useEffect(() => {
+    window.localStorage.setItem(
+      strengthRecordsStorageKey,
+      JSON.stringify(strengthRecords),
+    );
+  }, [strengthRecords]);
+
+  useEffect(() => {
     setActiveTimerMode(getWorkoutTimerMode(activeWorkout.type));
-    setIsTimerRunning(false);
+    setTimerPhase("idle");
     setElapsedSeconds(0);
+    setPrepSecondsLeft(prepDurationSeconds);
+    setCustomDurationMinutes(activeWorkout.timeCapMinutes);
+    setEmomIntervalMinutes(1);
   }, [activeWorkout.id, activeWorkout.type, activeWorkout.timeCapMinutes]);
 
   useEffect(() => {
-    if (!isTimerRunning || timerHasFinished) {
-    setIsTimerRunning(false);
-    setSecondsLeft(activeWorkout.timeCapMinutes * 60);
-  }, [activeWorkout.id, activeWorkout.timeCapMinutes]);
-
-  useEffect(() => {
-    if (!isTimerRunning || secondsLeft === 0) {
+    if (timerPhase !== "preparing") {
       return;
     }
 
     const intervalId = window.setInterval(() => {
-      setElapsedSeconds((currentSeconds) =>
-        Math.min(currentSeconds + 1, workoutDurationSeconds),
-      );
+      setPrepSecondsLeft((currentSeconds) => {
+        if (currentSeconds <= 1) {
+          setTimerPhase("running");
+          return prepDurationSeconds;
+        }
+
+        return currentSeconds - 1;
+      });
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [isTimerRunning, timerHasFinished, workoutDurationSeconds]);
+  }, [timerPhase]);
 
   useEffect(() => {
-    if (timerHasFinished) {
-      setIsTimerRunning(false);
+    if (timerPhase !== "running") {
+      return;
     }
-  }, [timerHasFinished]);
-      setSecondsLeft((currentSeconds) => Math.max(currentSeconds - 1, 0));
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((currentSeconds) => {
+        const nextSeconds = Math.min(currentSeconds + 1, workoutDurationSeconds);
+
+        if (nextSeconds >= workoutDurationSeconds) {
+          setTimerPhase("finished");
+        }
+
+        return nextSeconds;
+      });
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [isTimerRunning, secondsLeft]);
+  }, [timerPhase, workoutDurationSeconds]);
 
   function chooseWorkout(workoutId: string) {
     setActiveWorkoutId(workoutId);
+    setActiveTab("today");
   }
 
-  function generateWorkout() {
-    const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
-    const randomIndex = Math.floor(Math.random() * options.length);
-    setActiveWorkoutId(options[randomIndex].id);
+  function resetTimer() {
+    setTimerPhase("idle");
+    setElapsedSeconds(0);
+    setPrepSecondsLeft(prepDurationSeconds);
+  }
+
+  function handleStartPauseTimer() {
+    if (timerPhase === "running") {
+      setTimerPhase("paused");
+      return;
+    }
+
+    if (timerPhase === "paused") {
+      setTimerPhase("running");
+      return;
+    }
+
+    setElapsedSeconds(0);
+    setPrepSecondsLeft(prepDurationSeconds);
+    setTimerPhase("preparing");
+  }
+
+  function updateDurationMinutes(nextDuration: number) {
+    setCustomDurationMinutes(Math.max(1, nextDuration));
+    resetTimer();
+  }
+
+  function updateEmomIntervalMinutes(nextInterval: number) {
+    setEmomIntervalMinutes(Math.max(1, nextInterval));
+    resetTimer();
   }
 
   function selectTimerMode(mode: TimerMode) {
     setActiveTimerMode(mode);
-    setIsTimerRunning(false);
-    setElapsedSeconds(0);
+    resetTimer();
+  }
+
+  function addStrengthRecord(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const parsedWeight = Number(strengthWeight);
+    const parsedReps = Number(strengthReps);
+
+    if (!parsedWeight || parsedWeight <= 0 || !parsedReps || parsedReps <= 0) {
+      return;
+    }
+
+    const nextRecord: StrengthPR = {
+      id:
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}`,
+      lift: selectedStrengthLift,
+      weight: parsedWeight,
+      unit: strengthUnit,
+      reps: parsedReps,
+      date: strengthDate || getDateKey(new Date()),
+      notes: strengthNotes.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setStrengthRecords((currentRecords) => [nextRecord, ...currentRecords]);
+    setStrengthWeight("");
+    setStrengthReps("1");
+    setStrengthNotes("");
+    setStrengthDate(getDateKey(new Date()));
+  }
+
+  function deleteStrengthRecord(recordId: string) {
+    setStrengthRecords((currentRecords) =>
+      currentRecords.filter((record) => record.id !== recordId),
+    );
   }
 
   function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
-    setLogs((currentLogs) => ({
-      ...currentLogs,
-      [activeWorkout.id]: {
-        ...currentLog,
+    setLogs((currentLogs) => {
+      const existingLog = currentLogs[activeWorkout.id] ?? currentLog;
+      const nextEntry = {
+        ...existingLog,
         ...nextLog,
-      },
-    }));
+      };
+
+      if (nextLog.completed === true && !nextEntry.completedAt) {
+        nextEntry.completedAt = getDateKey(new Date());
+      }
+
+      if (nextLog.completed === false) {
+        delete nextEntry.completedAt;
+      }
+
+      return {
+        ...currentLogs,
+        [activeWorkout.id]: nextEntry,
+      };
+    });
   }
 
   return (
     <main className="app-shell">
-      <section className="hero">
-        <div className="hero__content">
+      <header className="app-header">
+        <div>
           <p className="eyebrow">CrossFit-style training planner</p>
-          <h1>Forge your next WOD with intent.</h1>
+          <h1>Wod Forge</h1>
           <p className="hero__lede">
-            Filter workouts by focus and equipment, generate a fresh session,
-            run the clock, and keep track of your score and notes.
+            Build a WOD, run the right clock, and keep your training notes in
+            one mobile-ready app.
           </p>
-          <div className="hero__actions">
-            <button className="button button--primary" onClick={generateWorkout}>
-              Generate WOD
-            </button>
-            <a className="button button--ghost" href="#library">
-              Browse library
-            </a>
-          </div>
         </div>
 
-        <div className="hero-card" aria-label="Training summary">
-          <span className="hero-card__label">Today&apos;s pick</span>
-          <strong>{activeWorkout.name}</strong>
-          <span>{activeWorkout.type}</span>
-          <div className="metric-grid">
+        <div className="week-card" aria-label="Weekly training calendar">
+          <div className="week-card__header">
             <div>
-              <span>{workouts.length}</span>
-              <small>WODs</small>
+              <span className="hero-card__label">This week</span>
+              <strong>{workoutsCompletedThisWeek.length} workouts done</strong>
             </div>
-            <div>
-              <span>{completedCount}</span>
-              <small>Logged</small>
-            </div>
-            <div>
-              <span>{availableEquipmentCount}</span>
-              <small>Gear types</small>
-            </div>
+            <small>
+              {getDateKey(weekStart)} to {getDateKey(weekEnd)}
+            </small>
+          </div>
+
+          <div className="week-grid">
+            {weekDays.map((date) => {
+              const dateKey = getDateKey(date);
+              const dayCompletions = completionsByDate[dateKey] ?? [];
+
+              return (
+                <div
+                  className={`week-day${dateKey === todayKey ? " is-today" : ""}${
+                    dayCompletions.length > 0 ? " has-workout" : ""
+                  }`}
+                  key={dateKey}
+                >
+                  <span>
+                    {date.toLocaleDateString(undefined, { weekday: "short" })}
+                  </span>
+                  <strong>{date.getDate()}</strong>
+                  {dayCompletions.length > 0 && <small>{dayCompletions.length}</small>}
+                </div>
+              );
+            })}
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="controls" aria-label="Workout filters">
-        <label>
-          Focus
-          <select
-            value={selectedFocus}
-            onChange={(event) =>
-              setSelectedFocus(event.target.value as Focus | "any")
-            }
+      <nav className="tab-nav" aria-label="Primary app sections">
+        {appTabs.map((tab) => (
+          <button
+            className={`tab-button${activeTab === tab.value ? " is-active" : ""}`}
+            id={`${tab.value}-tab`}
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            type="button"
           >
-            {focusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <strong>{tab.label}</strong>
+            <span>{tab.description}</span>
+          </button>
+        ))}
+      </nav>
 
-        <label>
-          Equipment
-          <select
-            value={selectedEquipment}
-            onChange={(event) =>
-              setSelectedEquipment(event.target.value as Equipment | "any")
-            }
-          >
-            {equipmentOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      {activeTab === "today" && (
+        <section className="tab-panel tab-panel--home" aria-labelledby="today-tab">
+          <article className="hero__content">
+            <p className="eyebrow">Today&apos;s workout</p>
+            <h2>Forge your next WOD with intent.</h2>
+            <p className="hero__lede">
+              Review the selected workout, check your week at a glance, then
+              jump to the clock when you are ready to train.
+            </p>
+            <div className="hero__actions">
+              <button
+                className="button button--ghost"
+                onClick={() => setActiveTab("library")}
+                type="button"
+              >
+                Choose workout
+              </button>
+              <button
+                className="button button--secondary"
+                onClick={() => setActiveTab("clock")}
+                type="button"
+              >
+                Open clock
+              </button>
+            </div>
+          </article>
+        </section>
+      )}
 
-        <button className="button button--secondary" onClick={generateWorkout}>
-          Random from filters
-        </button>
-      </section>
-
-      <section className="dashboard">
-        <article className="workout-panel">
-          <div className="section-heading">
-            <p className="eyebrow">Workout briefing</p>
-            <h2>{activeWorkout.name}</h2>
-          </div>
-
-          <div className="tag-row">
-            <span>{activeWorkout.type}</span>
-            <span>{activeWorkout.focus}</span>
-            <span>{activeWorkout.intensity}</span>
-            <span>{activeWorkout.timeCapMinutes} min cap</span>
-          </div>
-
-          <ol className="workout-steps">
-            {activeWorkout.workout.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-
-          <div className="coach-note">
-            <h3>Coach&apos;s cue</h3>
-            <p>{activeWorkout.coachingCue}</p>
-          </div>
-
-          <div className="coach-note coach-note--muted">
-            <h3>Scaling option</h3>
-            <p>{activeWorkout.scaling}</p>
-          </div>
-
-          <div className="equipment-list">
-            {activeWorkout.equipment.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-        </article>
-
-        <aside className="side-stack">
+      {activeTab === "clock" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="clock-tab">
           <article className="timer-card">
             <p className="eyebrow">WOD clock</p>
+            <h2>{activeWorkout.name}</h2>
             <div className="timer-modes" aria-label="Timer mode">
               {timerModes.map((mode) => (
                 <button
                   className={`timer-mode${
                     activeTimerMode === mode.value ? " is-active" : ""
                   }`}
+                  disabled={isTimerActive}
                   key={mode.value}
                   onClick={() => selectTimerMode(mode.value)}
                   type="button"
@@ -502,6 +745,39 @@ function App() {
                   <span>{mode.description}</span>
                 </button>
               ))}
+            </div>
+
+            <div className="timer-settings">
+              <label>
+                Total time
+                <input
+                  min="1"
+                  type="number"
+                  value={customDurationMinutes}
+                  onChange={(event) =>
+                    updateDurationMinutes(Number(event.target.value))
+                  }
+                />
+                <small>minutes</small>
+              </label>
+
+              {activeTimerMode === "EMOM" && (
+                <label>
+                  EMOM interval
+                  <select
+                    value={emomIntervalMinutes}
+                    onChange={(event) =>
+                      updateEmomIntervalMinutes(Number(event.target.value))
+                    }
+                  >
+                    {[1, 2, 3, 4, 5].map((minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {minutes} min
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
 
             <p className="timer-label">{timerLabel}</p>
@@ -514,36 +790,178 @@ function App() {
               {activeTimerMode !== "For Time" && (
                 <span>Remaining {formatTime(remainingSeconds)}</span>
               )}
-            <div className="timer" aria-live="polite">
-              {formatTime(secondsLeft)}
             </div>
             <div className="timer-actions">
               <button
                 className="button button--primary"
-                disabled={timerHasFinished}
-                onClick={() => setIsTimerRunning((running) => !running)}
+                disabled={timerHasFinished || timerPhase === "preparing"}
+                onClick={handleStartPauseTimer}
                 type="button"
-                onClick={() => setIsTimerRunning((running) => !running)}
               >
-                {isTimerRunning ? "Pause" : "Start"}
+                {timerPhase === "running" ? "Pause" : "Start"}
               </button>
               <button
                 className="button button--ghost"
-                onClick={() => {
-                  setIsTimerRunning(false);
-                  setElapsedSeconds(0);
-                }}
+                onClick={resetTimer}
                 type="button"
-                  setSecondsLeft(activeWorkout.timeCapMinutes * 60);
-                }}
               >
                 Reset
               </button>
             </div>
           </article>
+        </section>
+      )}
 
+      {activeTab === "prs" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="prs-tab">
+          <article className="pr-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Strength PRs</p>
+                <h2>Record your lifts</h2>
+              </div>
+              <span className="pr-count">{strengthRecordCount} saved</span>
+            </div>
+
+            <div className="movement-grid" aria-label="Strength movements">
+              {strengthLiftOptions.map((lift) => (
+                <button
+                  className={`movement-tile${
+                    selectedStrengthLift === lift ? " is-active" : ""
+                  }`}
+                  key={lift}
+                  onClick={() => setSelectedStrengthLift(lift)}
+                  type="button"
+                >
+                  {lift}
+                </button>
+              ))}
+            </div>
+
+            <div className="pr-detail-header">
+              <div>
+                <p className="eyebrow">Selected movement</p>
+                <h3>{selectedStrengthLift}</h3>
+              </div>
+              {heaviestStrengthRecordByLift[selectedStrengthLift] && (
+                <span className="pr-best-badge">
+                  🏆 {formatStrengthWeight(heaviestStrengthRecordByLift[selectedStrengthLift])}
+                </span>
+              )}
+            </div>
+
+            <form className="pr-form" onSubmit={addStrengthRecord}>
+              <div className="pr-form-row">
+                <label>
+                  Weight
+                  <input
+                    min="0"
+                    inputMode="decimal"
+                    step="0.5"
+                    type="number"
+                    value={strengthWeight}
+                    onChange={(event) => setStrengthWeight(event.target.value)}
+                    placeholder="315"
+                  />
+                </label>
+                <label>
+                  Unit
+                  <select
+                    value={strengthUnit}
+                    onChange={(event) =>
+                      setStrengthUnit(event.target.value as StrengthUnit)
+                    }
+                  >
+                    <option value="lb">lb</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="pr-form-row">
+                <label>
+                  Reps
+                  <input
+                    min="1"
+                    inputMode="numeric"
+                    type="number"
+                    value={strengthReps}
+                    onChange={(event) => setStrengthReps(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={strengthDate}
+                    onChange={(event) => setStrengthDate(event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Notes
+                <textarea
+                  value={strengthNotes}
+                  onChange={(event) => setStrengthNotes(event.target.value)}
+                  placeholder="How did it move? Any setup cues?"
+                />
+              </label>
+
+              <button className="button button--primary" type="submit">
+                Save {selectedStrengthLift} PR
+              </button>
+            </form>
+
+            <div className="pr-history">
+              <h3>{selectedStrengthLift} history</h3>
+              {selectedStrengthRecords.length === 0 ? (
+                <p>No {selectedStrengthLift} PRs saved yet.</p>
+              ) : (
+                selectedStrengthRecords.map((record) => {
+                  const isHeaviest =
+                    heaviestStrengthRecordByLift[record.lift]?.id === record.id;
+
+                  return (
+                    <div
+                      className={`pr-record${isHeaviest ? " is-heaviest" : ""}`}
+                      key={record.id}
+                    >
+                      <div className="pr-record-main">
+                        <strong>
+                          {isHeaviest ? "🏆 " : ""}
+                          {record.lift}
+                        </strong>
+                        <span>
+                          {formatStrengthWeight(record)} x {record.reps}
+                        </span>
+                        {record.notes && <small>{record.notes}</small>}
+                      </div>
+                      <div className="pr-record-meta">
+                        <span>{record.date}</span>
+                        {isHeaviest && <small>Heaviest for {record.lift}</small>}
+                      </div>
+                      <button
+                        className="pr-delete-link"
+                        onClick={() => deleteStrengthRecord(record.id)}
+                        type="button"
+                      >
+                        Remove record
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </article>
+        </section>
+      )}
+
+      {activeTab === "log" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="log-tab">
           <article className="log-card">
             <p className="eyebrow">Training log</p>
+            <h2>{activeWorkout.name}</h2>
             <label>
               Score
               <input
@@ -574,37 +992,14 @@ function App() {
               />
               Mark workout complete
             </label>
+            {currentLog.completedAt && (
+              <p className="completion-note">
+                Synced to calendar for {currentLog.completedAt}.
+              </p>
+            )}
           </article>
-        </aside>
-      </section>
-
-      <section className="library" id="library">
-        <div className="section-heading">
-          <p className="eyebrow">Workout library</p>
-          <h2>{filteredWorkouts.length || workouts.length} workouts ready</h2>
-        </div>
-
-        <div className="library-grid">
-          {(filteredWorkouts.length > 0 ? filteredWorkouts : workouts).map(
-            (workout) => (
-              <button
-                className={`library-card${
-                  workout.id === activeWorkout.id ? " is-active" : ""
-                }`}
-                key={workout.id}
-                onClick={() => chooseWorkout(workout.id)}
-              >
-                <span>{workout.type}</span>
-                <strong>{workout.name}</strong>
-                <small>
-                  {workout.timeCapMinutes} min · {workout.focus}
-                </small>
-                <small>{workout.movements.join(" / ")}</small>
-              </button>
-            ),
-          )}
-        </div>
-      </section>
+        </section>
+      )}
     </main>
   );
 }
