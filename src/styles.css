@@ -658,6 +658,54 @@ textarea:focus {
   gap: 16px;
 }
 
+.movement-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.movement-tile {
+  min-height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 12px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.055);
+  font-weight: 900;
+  text-align: left;
+}
+
+.movement-tile.is-active {
+  border-color: rgba(251, 113, 133, 0.78);
+  background: rgba(251, 113, 133, 0.14);
+  box-shadow: 0 12px 28px rgba(251, 113, 133, 0.12);
+}
+
+.pr-detail-header {
+  border-radius: 22px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.pr-detail-header h3,
+.pr-detail-header p {
+  margin-bottom: 0;
+}
+
+.pr-best-badge {
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #fef3c7;
+  background: rgba(251, 191, 36, 0.16);
+  font-size: 0.86rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 .pr-form-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 140px;
@@ -892,9 +940,15 @@ textarea:focus {
   }
 
   .timer-settings,
+  .movement-grid,
   .pr-form-row,
   .pr-record {
     grid-template-columns: 1fr;
+  }
+
+  .pr-detail-header {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .pr-record {

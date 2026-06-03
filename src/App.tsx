@@ -403,6 +403,9 @@ function App() {
     const dateSort = b.date.localeCompare(a.date);
     return dateSort === 0 ? b.createdAt.localeCompare(a.createdAt) : dateSort;
   });
+  const selectedStrengthRecords = sortedStrengthRecords.filter(
+    (record) => record.lift === selectedStrengthLift,
+  );
   const heaviestStrengthRecordByLift = strengthRecords.reduce<
     Record<string, StrengthPR>
   >((records, record) => {
@@ -820,23 +823,34 @@ function App() {
               <span className="pr-count">{strengthRecordCount} saved</span>
             </div>
 
-            <form className="pr-form" onSubmit={addStrengthRecord}>
-              <label>
-                Lift
-                <select
-                  value={selectedStrengthLift}
-                  onChange={(event) =>
-                    setSelectedStrengthLift(event.target.value)
-                  }
+            <div className="movement-grid" aria-label="Strength movements">
+              {strengthLiftOptions.map((lift) => (
+                <button
+                  className={`movement-tile${
+                    selectedStrengthLift === lift ? " is-active" : ""
+                  }`}
+                  key={lift}
+                  onClick={() => setSelectedStrengthLift(lift)}
+                  type="button"
                 >
-                  {strengthLiftOptions.map((lift) => (
-                    <option key={lift} value={lift}>
-                      {lift}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {lift}
+                </button>
+              ))}
+            </div>
 
+            <div className="pr-detail-header">
+              <div>
+                <p className="eyebrow">Selected movement</p>
+                <h3>{selectedStrengthLift}</h3>
+              </div>
+              {heaviestStrengthRecordByLift[selectedStrengthLift] && (
+                <span className="pr-best-badge">
+                  🏆 {formatStrengthWeight(heaviestStrengthRecordByLift[selectedStrengthLift])}
+                </span>
+              )}
+            </div>
+
+            <form className="pr-form" onSubmit={addStrengthRecord}>
               <div className="pr-form-row">
                 <label>
                   Weight
@@ -895,16 +909,16 @@ function App() {
               </label>
 
               <button className="button button--primary" type="submit">
-                Save PR
+                Save {selectedStrengthLift} PR
               </button>
             </form>
 
             <div className="pr-history">
-              <h3>PR history</h3>
-              {sortedStrengthRecords.length === 0 ? (
-                <p>No strength PRs saved yet.</p>
+              <h3>{selectedStrengthLift} history</h3>
+              {selectedStrengthRecords.length === 0 ? (
+                <p>No {selectedStrengthLift} PRs saved yet.</p>
               ) : (
-                sortedStrengthRecords.map((record) => {
+                selectedStrengthRecords.map((record) => {
                   const isHeaviest =
                     heaviestStrengthRecordByLift[record.lift]?.id === record.id;
 
