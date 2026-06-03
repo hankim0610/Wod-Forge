@@ -141,6 +141,7 @@ a {
 
 .hero__content,
 .hero-card,
+.week-card,
 .controls,
 .workout-panel,
 .timer-card,
@@ -288,6 +289,98 @@ h3 {
   font-size: 2.4rem;
   line-height: 0.95;
   letter-spacing: -0.06em;
+}
+
+.week-card {
+  border-radius: 36px;
+  padding: 28px;
+  display: grid;
+  gap: 20px;
+}
+
+.week-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.week-card__header strong,
+.week-card__header small {
+  display: block;
+}
+
+.week-card__header strong {
+  margin-top: 6px;
+  font-size: 1.8rem;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.week-card__header small {
+  color: #94a3b8;
+  font-weight: 800;
+  text-align: right;
+}
+
+.week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.week-day {
+  min-width: 0;
+  min-height: 88px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 10px 8px;
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+  align-content: center;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.week-day span {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.week-day strong {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.week-day small {
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #052e16;
+  background: #86efac;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.week-day.is-today {
+  border-color: rgba(249, 115, 22, 0.9);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+}
+
+.week-day.has-workout {
+  color: #ecfdf5;
+  border-color: rgba(52, 211, 153, 0.58);
+  background:
+    radial-gradient(circle at 80% 18%, rgba(251, 191, 36, 0.32), transparent 28px),
+    linear-gradient(135deg, rgba(16, 185, 129, 0.62), rgba(20, 184, 166, 0.34));
+}
+
+.week-day.has-workout span {
+  color: #d1fae5;
 }
 
 .metric-grid {
@@ -896,6 +989,7 @@ textarea:focus {
   .app-header > div:first-child,
   .hero__content,
   .hero-card,
+  .week-card,
   .workout-panel,
   .timer-card,
   .calendar-card,
@@ -931,6 +1025,24 @@ textarea:focus {
   .metric-grid,
   .library-grid {
     grid-template-columns: 1fr;
+  }
+
+  .week-grid {
+    gap: 5px;
+  }
+
+  .week-day {
+    min-height: 62px;
+    border-radius: 14px;
+    padding: 8px 4px;
+  }
+
+  .week-day span {
+    font-size: 0.62rem;
+  }
+
+  .week-day strong {
+    font-size: 1rem;
   }
 
   .timer-settings,

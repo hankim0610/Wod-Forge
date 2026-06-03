@@ -404,6 +404,12 @@ function App() {
   const weekStart = getStartOfWeek(new Date());
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
+  const weekDays = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + index);
+
+    return date;
+  });
   const workoutsCompletedThisWeek = completedWorkouts.filter(({ log }) => {
     if (!log.completedAt) {
       return false;
@@ -554,12 +560,6 @@ function App() {
     setActiveTab("today");
   }
 
-  function generateWorkout() {
-    const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
-    const randomIndex = Math.floor(Math.random() * options.length);
-    setActiveWorkoutId(options[randomIndex].id);
-  }
-
   function resetTimer() {
     setTimerPhase("idle");
     setElapsedSeconds(0);
@@ -680,31 +680,37 @@ function App() {
           </p>
         </div>
 
-        <div className="hero-card" aria-label="Training summary">
-          <span className="hero-card__label">Today&apos;s pick</span>
-          <strong>{activeWorkout.name}</strong>
-          <span>{activeWorkout.type}</span>
-          <div className="metric-grid">
+        <div className="week-card" aria-label="Weekly training calendar">
+          <div className="week-card__header">
             <div>
-              <span>{workouts.length}</span>
-              <small>WODs</small>
+              <span className="hero-card__label">This week</span>
+              <strong>{workoutsCompletedThisWeek.length} workouts done</strong>
             </div>
-            <div>
-              <span>{completedCount}</span>
-              <small>Logged</small>
-            </div>
-            <div>
-              <span>{workoutsCompletedThisWeek.length}</span>
-              <small>This week</small>
-            </div>
-            <div>
-              <span>{strengthRecordCount}</span>
-              <small>PRs</small>
-            </div>
-            <div>
-              <span>{availableEquipmentCount}</span>
-              <small>Gear types</small>
-            </div>
+            <small>
+              {getDateKey(weekStart)} to {getDateKey(weekEnd)}
+            </small>
+          </div>
+
+          <div className="week-grid">
+            {weekDays.map((date) => {
+              const dateKey = getDateKey(date);
+              const dayCompletions = completionsByDate[dateKey] ?? [];
+
+              return (
+                <div
+                  className={`week-day${dateKey === todayKey ? " is-today" : ""}${
+                    dayCompletions.length > 0 ? " has-workout" : ""
+                  }`}
+                  key={dateKey}
+                >
+                  <span>
+                    {date.toLocaleDateString(undefined, { weekday: "short" })}
+                  </span>
+                  <strong>{date.getDate()}</strong>
+                  {dayCompletions.length > 0 && <small>{dayCompletions.length}</small>}
+                </div>
+              );
+            })}
           </div>
         </div>
       </header>
@@ -730,23 +736,16 @@ function App() {
             <p className="eyebrow">Today&apos;s workout</p>
             <h2>Forge your next WOD with intent.</h2>
             <p className="hero__lede">
-              Generate a fresh session, review the plan, then jump to the clock
-              tab when you are ready to train.
+              Review the selected workout, check your week at a glance, then
+              jump to the clock when you are ready to train.
             </p>
             <div className="hero__actions">
-              <button
-                className="button button--primary"
-                onClick={generateWorkout}
-                type="button"
-              >
-                Generate WOD
-              </button>
               <button
                 className="button button--ghost"
                 onClick={() => setActiveTab("library")}
                 type="button"
               >
-                Browse library
+                Choose workout
               </button>
               <button
                 className="button button--secondary"
