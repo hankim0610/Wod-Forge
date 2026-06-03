@@ -434,7 +434,7 @@ function App() {
   const emomIntervalSeconds = sanitizedEmomIntervalMinutes * 60;
   const remainingSeconds = Math.max(workoutDurationSeconds - elapsedSeconds, 0);
   const timerHasFinished = timerPhase === "finished";
-  const isTimerActive = timerPhase === "preparing" || timerPhase === "running";
+  const isClockMode = timerPhase !== "idle";
   const totalEmomIntervals = Math.ceil(
     workoutDurationSeconds / emomIntervalSeconds,
   );
@@ -466,12 +466,16 @@ function App() {
     timerPhase === "preparing"
       ? "Your workout starts after the 10 second prep countdown."
       : timerHasFinished
-        ? "Time cap reached"
-        : activeTimerMode === "For Time"
-          ? `Finish the work before the ${sanitizedDurationMinutes}:00 cap.`
-          : activeTimerMode === "EMOM"
-            ? `Interval ${emomCurrentInterval} of ${totalEmomIntervals} (${sanitizedEmomIntervalMinutes} min each).`
-            : "Keep accumulating rounds and reps until the clock expires.";
+        ? currentLog.completed
+          ? "Workout saved to your log."
+          : "Time cap reached. Stop to save this workout."
+        : timerPhase === "paused"
+          ? "Clock paused. Resume when you are ready."
+          : activeTimerMode === "For Time"
+            ? `Finish the work before the ${sanitizedDurationMinutes}:00 cap.`
+            : activeTimerMode === "EMOM"
+              ? `Interval ${emomCurrentInterval} of ${totalEmomIntervals} (${sanitizedEmomIntervalMinutes} min each).`
+              : "Keep accumulating rounds and reps until the clock expires.";
 
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
@@ -557,6 +561,30 @@ function App() {
     setElapsedSeconds(0);
     setPrepSecondsLeft(prepDurationSeconds);
     setTimerPhase("preparing");
+  }
+
+  function stopAndSaveWorkout() {
+    const completedAt = getDateKey(new Date());
+    const fallbackScore =
+      activeTimerMode === "For Time"
+        ? `Stopped at ${formatTime(elapsedSeconds)}`
+        : `${formatTime(elapsedSeconds)} elapsed`;
+
+    setTimerPhase("finished");
+    setPrepSecondsLeft(prepDurationSeconds);
+    setLogs((currentLogs) => {
+      const existingLog = currentLogs[activeWorkout.id] ?? currentLog;
+
+      return {
+        ...currentLogs,
+        [activeWorkout.id]: {
+          ...existingLog,
+          completed: true,
+          completedAt,
+          score: existingLog.score || fallbackScore,
+        },
+      };
+    });
   }
 
   function updateDurationMinutes(nextDuration: number) {
@@ -727,86 +755,132 @@ function App() {
 
       {activeTab === "clock" && (
         <section className="tab-panel tab-panel--narrow" aria-labelledby="clock-tab">
-          <article className="timer-card">
+          <article className={`timer-card${isClockMode ? " timer-card--focus" : ""}`}>
             <p className="eyebrow">WOD clock</p>
             <h2>{activeWorkout.name}</h2>
-            <div className="timer-modes" aria-label="Timer mode">
-              {timerModes.map((mode) => (
+
+            {!isClockMode && (
+              <>
+                <div className="timer-modes" aria-label="Timer mode">
+                  {timerModes.map((mode) => (
+                    <button
+                      className={`timer-mode${
+                        activeTimerMode === mode.value ? " is-active" : ""
+                      }`}
+                      key={mode.value}
+                      onClick={() => selectTimerMode(mode.value)}
+                      type="button"
+                    >
+                      <strong>{mode.label}</strong>
+                      <span>{mode.description}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="timer-settings">
+                  <label>
+                    Total time
+                    <input
+                      min="1"
+                      type="number"
+                      value={customDurationMinutes}
+                      onChange={(event) =>
+                        updateDurationMinutes(Number(event.target.value))
+                      }
+                    />
+                    <small>minutes</small>
+                  </label>
+
+                  {activeTimerMode === "EMOM" && (
+                    <label>
+                      EMOM interval
+                      <select
+                        value={emomIntervalMinutes}
+                        onChange={(event) =>
+                          updateEmomIntervalMinutes(Number(event.target.value))
+                        }
+                      >
+                        {[1, 2, 3, 4, 5].map((minutes) => (
+                          <option key={minutes} value={minutes}>
+                            {minutes} min
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="clock-face">
+              <p className="timer-label">{timerLabel}</p>
+              <div className="timer" aria-live="polite">
+                {timerDisplay}
+              </div>
+              <div className="timer-details">
+                <span>{timerStatus}</span>
+                <span>Elapsed {formatTime(elapsedSeconds)}</span>
+                {activeTimerMode !== "For Time" && (
+                  <span>Remaining {formatTime(remainingSeconds)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="timer-actions">
+              {!isClockMode ? (
                 <button
-                  className={`timer-mode${
-                    activeTimerMode === mode.value ? " is-active" : ""
-                  }`}
-                  disabled={isTimerActive}
-                  key={mode.value}
-                  onClick={() => selectTimerMode(mode.value)}
+                  className="button button--primary"
+                  onClick={handleStartPauseTimer}
                   type="button"
                 >
-                  <strong>{mode.label}</strong>
-                  <span>{mode.description}</span>
+                  Start
                 </button>
-              ))}
-            </div>
-
-            <div className="timer-settings">
-              <label>
-                Total time
-                <input
-                  min="1"
-                  type="number"
-                  value={customDurationMinutes}
-                  onChange={(event) =>
-                    updateDurationMinutes(Number(event.target.value))
-                  }
-                />
-                <small>minutes</small>
-              </label>
-
-              {activeTimerMode === "EMOM" && (
-                <label>
-                  EMOM interval
-                  <select
-                    value={emomIntervalMinutes}
-                    onChange={(event) =>
-                      updateEmomIntervalMinutes(Number(event.target.value))
-                    }
+              ) : timerHasFinished ? (
+                currentLog.completed ? (
+                  <button
+                    className="button button--primary"
+                    onClick={resetTimer}
+                    type="button"
                   >
-                    {[1, 2, 3, 4, 5].map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {minutes} min
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    Set up next clock
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="button button--danger"
+                      onClick={stopAndSaveWorkout}
+                      type="button"
+                    >
+                      Stop
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={resetTimer}
+                      type="button"
+                    >
+                      Reset without saving
+                    </button>
+                  </>
+                )
+              ) : (
+                <>
+                  <button
+                    className="button button--primary"
+                    disabled={timerPhase === "preparing"}
+                    onClick={handleStartPauseTimer}
+                    type="button"
+                  >
+                    {timerPhase === "paused" ? "Resume" : "Pause"}
+                  </button>
+                  <button
+                    className="button button--danger"
+                    onClick={stopAndSaveWorkout}
+                    type="button"
+                  >
+                    Stop
+                  </button>
+                </>
               )}
-            </div>
-
-            <p className="timer-label">{timerLabel}</p>
-            <div className="timer" aria-live="polite">
-              {timerDisplay}
-            </div>
-            <div className="timer-details">
-              <span>{timerStatus}</span>
-              <span>Elapsed {formatTime(elapsedSeconds)}</span>
-              {activeTimerMode !== "For Time" && (
-                <span>Remaining {formatTime(remainingSeconds)}</span>
-              )}
-            </div>
-            <div className="timer-actions">
-              <button
-                className="button button--primary"
-                disabled={timerHasFinished || timerPhase === "preparing"}
-                onClick={handleStartPauseTimer}
-                type="button"
-              >
-                {timerPhase === "running" ? "Pause" : "Start"}
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={resetTimer}
-                type="button"
-              >
-                Reset
-              </button>
             </div>
           </article>
         </section>

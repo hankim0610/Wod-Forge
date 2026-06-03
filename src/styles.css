@@ -250,6 +250,12 @@ h3 {
   background: rgba(255, 255, 255, 0.06);
 }
 
+.button--danger {
+  color: #fff1f2;
+  border: 1px solid rgba(244, 63, 94, 0.55);
+  background: rgba(244, 63, 94, 0.18);
+}
+
 .hero-card {
   border-radius: 36px;
   padding: 32px;
@@ -547,6 +553,47 @@ textarea:focus {
 .side-stack {
   display: grid;
   gap: 24px;
+}
+
+.timer-card--focus {
+  min-height: min(620px, calc(100vh - 220px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.timer-card--focus h2 {
+  margin-bottom: 18px;
+}
+
+.clock-face {
+  display: grid;
+  gap: 10px;
+}
+
+.timer-card--focus .clock-face {
+  flex: 1;
+  align-content: center;
+}
+
+.timer-card--focus .timer-label {
+  margin-top: 0;
+}
+
+.timer-card--focus .timer {
+  margin: 0;
+  font-size: clamp(4.5rem, 20vw, 8.5rem);
+}
+
+.timer-card--focus .timer-details {
+  justify-items: center;
+  margin-bottom: 0;
+}
+
+.timer-card--focus .timer-actions {
+  justify-content: center;
+  margin-top: 28px;
 }
 
 .timer-modes {
