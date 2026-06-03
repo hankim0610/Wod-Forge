@@ -886,37 +886,19 @@ textarea:focus {
   gap: 18px;
 }
 
-.style-grid {
+.library-select {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 8px;
 }
 
-.style-card {
-  min-height: 118px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 22px;
-  padding: 16px;
-  color: #f8fafc;
-  background: rgba(255, 255, 255, 0.055);
-  text-align: left;
-}
-
-.style-card.is-active {
-  border-color: rgba(251, 113, 133, 0.78);
-  background: rgba(251, 113, 133, 0.13);
-}
-
-.style-card strong,
-.style-card span {
-  display: block;
-}
-
-.style-card span {
-  margin-top: 8px;
+.library-select small {
   color: #94a3b8;
   font-size: 0.84rem;
-  font-weight: 700;
+  font-weight: 800;
+}
+
+.library-section-spacer {
+  height: 10px;
 }
 
 .equipment-picker {
@@ -932,23 +914,31 @@ textarea:focus {
   color: #94a3b8;
 }
 
-.equipment-chip-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.equipment-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.equipment-chip {
+.equipment-checkbox {
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  padding: 8px 12px;
+  border-radius: 16px;
+  padding: 10px 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
   color: #f8fafc;
   background: transparent;
-  font-size: 0.84rem;
   font-weight: 900;
 }
 
-.equipment-chip.is-active {
+.equipment-checkbox input {
+  width: 18px;
+  height: 18px;
+  accent-color: #fb7185;
+}
+
+.equipment-checkbox:has(input:checked) {
   border-color: rgba(52, 211, 153, 0.62);
   color: #ecfdf5;
   background: rgba(16, 185, 129, 0.16);
@@ -968,7 +958,7 @@ textarea:focus {
 .library-card {
   border-radius: 24px;
   padding: 20px;
-  color: inherit;
+  color: #f8fafc;
   text-align: left;
 }
 
@@ -988,6 +978,7 @@ textarea:focus {
 .library-card strong {
   display: block;
   margin: 8px 0;
+  color: #ffffff;
   font-size: 1.18rem;
 }
 
@@ -1011,7 +1002,7 @@ textarea:focus {
   }
 
   .library-grid,
-  .style-grid {
+  .equipment-checkbox-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1062,7 +1053,7 @@ textarea:focus {
 
   .metric-grid,
   .library-grid,
-  .style-grid {
+  .equipment-checkbox-grid {
     grid-template-columns: 1fr;
   }
 

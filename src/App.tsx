@@ -463,7 +463,7 @@ function App() {
   const [availableLibraryEquipment, setAvailableLibraryEquipment] = useState<
     Equipment[]
   >(["bodyweight", "dumbbells", "rower"]);
-  const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
+  const [generatedWorkouts, setGeneratedWorkouts] = useState<Workout[]>([]);
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
@@ -488,13 +488,24 @@ function App() {
     workouts[0].timeCapMinutes,
   );
   const [emomIntervalMinutes, setEmomIntervalMinutes] = useState(1);
-  const activeWorkout = generatedWorkout ??
-    workouts.find((workout) => workout.id === activeWorkoutId) ??
-    workouts[0];
+  const allWorkouts = useMemo(
+    () => [...generatedWorkouts, ...workouts],
+    [generatedWorkouts],
+  );
+  const activeWorkout =
+    allWorkouts.find((workout) => workout.id === activeWorkoutId) ?? workouts[0];
 
   const styleWorkouts = useMemo(() => {
     return workouts.filter((workout) => workout.style === selectedWorkoutStyle);
   }, [selectedWorkoutStyle]);
+  const recommendedWorkouts = useMemo(() => {
+    return [
+      ...generatedWorkouts.filter(
+        (workout) => workout.style === selectedWorkoutStyle,
+      ),
+      ...styleWorkouts,
+    ];
+  }, [generatedWorkouts, selectedWorkoutStyle, styleWorkouts]);
 
   const currentLog = logs[activeWorkout.id] ?? {
     completed: false,
@@ -505,7 +516,7 @@ function App() {
     .filter(([, entry]) => entry.completed && entry.completedAt)
     .map(([workoutId, entry]) => ({
       log: entry,
-      workout: workouts.find((workout) => workout.id === workoutId),
+      workout: allWorkouts.find((workout) => workout.id === workoutId),
       workoutId,
     }));
   const completionsByDate = completedWorkouts.reduce<Record<string, typeof completedWorkouts>>(
@@ -680,8 +691,16 @@ function App() {
   }, [timerPhase, workoutDurationSeconds]);
 
   function chooseWorkout(workoutId: string) {
-    setGeneratedWorkout(null);
+    const selectedWorkout = allWorkouts.find((workout) => workout.id === workoutId);
+
     setActiveWorkoutId(workoutId);
+
+    if (selectedWorkout) {
+      setActiveTimerMode(getWorkoutTimerMode(selectedWorkout.type));
+      setCustomDurationMinutes(selectedWorkout.timeCapMinutes);
+      resetTimer();
+    }
+
     setActiveTab("today");
   }
 
@@ -699,17 +718,19 @@ function App() {
     );
     const sourceWorkouts = templates.length > 0 ? templates : styleWorkouts;
     const template = sourceWorkouts[Math.floor(Math.random() * sourceWorkouts.length)];
-    const nextWorkout = adaptWorkoutToEquipment(
+    const adaptedWorkout = adaptWorkoutToEquipment(
       template,
       availableLibraryEquipment,
     );
+    const nextWorkout: Workout = {
+      ...adaptedWorkout,
+      id: `generated-${selectedWorkoutStyle}-${Date.now()}`,
+      name: adaptedWorkout.name.includes("Generated")
+        ? adaptedWorkout.name
+        : `${adaptedWorkout.name} (Generated)`,
+    };
 
-    setGeneratedWorkout(nextWorkout);
-    setActiveWorkoutId(nextWorkout.id);
-    setActiveTimerMode(getWorkoutTimerMode(nextWorkout.type));
-    setCustomDurationMinutes(nextWorkout.timeCapMinutes);
-    resetTimer();
-    setActiveTab("today");
+    setGeneratedWorkouts((currentWorkouts) => [nextWorkout, ...currentWorkouts]);
   }
 
   function resetTimer() {
@@ -1067,21 +1088,30 @@ function App() {
               </div>
             </div>
 
-            <div className="style-grid" aria-label="Workout style">
-              {workoutStyleOptions.map((style) => (
-                <button
-                  className={`style-card${
-                    selectedWorkoutStyle === style.value ? " is-active" : ""
-                  }`}
-                  key={style.value}
-                  onClick={() => setSelectedWorkoutStyle(style.value)}
-                  type="button"
-                >
-                  <strong>{style.label}</strong>
-                  <span>{style.description}</span>
-                </button>
-              ))}
-            </div>
+            <label className="library-select">
+              Workout style
+              <select
+                value={selectedWorkoutStyle}
+                onChange={(event) =>
+                  setSelectedWorkoutStyle(event.target.value as WorkoutStyle)
+                }
+              >
+                {workoutStyleOptions.map((style) => (
+                  <option key={style.value} value={style.value}>
+                    {style.label}
+                  </option>
+                ))}
+              </select>
+              <small>
+                {
+                  workoutStyleOptions.find(
+                    (style) => style.value === selectedWorkoutStyle,
+                  )?.description
+                }
+              </small>
+            </label>
+
+            <div className="library-section-spacer" />
 
             <div className="equipment-picker">
               <div>
@@ -1092,20 +1122,16 @@ function App() {
                   movements for available alternatives.
                 </p>
               </div>
-              <div className="equipment-chip-grid">
+              <div className="equipment-checkbox-grid">
                 {libraryEquipmentOptions.map((equipment) => (
-                  <button
-                    className={`equipment-chip${
-                      availableLibraryEquipment.includes(equipment.value)
-                        ? " is-active"
-                        : ""
-                    }`}
-                    key={equipment.value}
-                    onClick={() => toggleLibraryEquipment(equipment.value)}
-                    type="button"
-                  >
-                    {equipment.label}
-                  </button>
+                  <label className="equipment-checkbox" key={equipment.value}>
+                    <input
+                      checked={availableLibraryEquipment.includes(equipment.value)}
+                      onChange={() => toggleLibraryEquipment(equipment.value)}
+                      type="checkbox"
+                    />
+                    <span>{equipment.label}</span>
+                  </label>
                 ))}
               </div>
             </div>
@@ -1123,12 +1149,12 @@ function App() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Recommended workouts</p>
-                <h2>{styleWorkouts.length} ready-made options</h2>
+                <h2>{recommendedWorkouts.length} options</h2>
               </div>
             </div>
 
             <div className="library-grid">
-              {styleWorkouts.map((workout) => (
+              {recommendedWorkouts.map((workout) => (
                 <button
                   className={`library-card${
                     workout.id === activeWorkout.id ? " is-active" : ""
