@@ -4,7 +4,7 @@ type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
-type AppTab = "today" | "clock" | "library" | "log";
+type AppTab = "today" | "clock" | "library" | "calendar" | "log";
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -31,6 +31,7 @@ type WorkoutLog = {
   score: string;
   notes: string;
   completed: boolean;
+  completedAt?: string;
 };
 
 const workouts: Workout[] = [
@@ -199,6 +200,7 @@ const appTabs: Array<{ value: AppTab; label: string; description: string }> = [
   { value: "today", label: "Today", description: "WOD briefing" },
   { value: "clock", label: "Clock", description: "Workout timers" },
   { value: "library", label: "Library", description: "Find workouts" },
+  { value: "calendar", label: "Calendar", description: "Training history" },
   { value: "log", label: "Log", description: "Score and notes" },
 ];
 
@@ -223,10 +225,57 @@ function getWorkoutTimerMode(workoutType: WorkoutType): TimerMode {
     : "For Time";
 }
 
+function getDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, "0");
+  const day = date.getDate().toString().padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function getStartOfWeek(date: Date) {
+  const start = new Date(date);
+  const day = start.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() + diff);
+
+  return start;
+}
+
+function getCalendarDays(monthDate: Date) {
+  const firstOfMonth = new Date(
+    monthDate.getFullYear(),
+    monthDate.getMonth(),
+    1,
+  );
+  const firstGridDate = new Date(firstOfMonth);
+  firstGridDate.setDate(firstGridDate.getDate() - firstGridDate.getDay());
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(firstGridDate);
+    date.setDate(firstGridDate.getDate() + index);
+
+    return date;
+  });
+}
+
 function getInitialLog(): Record<string, WorkoutLog> {
   try {
     const savedLog = window.localStorage.getItem(logStorageKey);
-    return savedLog ? JSON.parse(savedLog) : {};
+    const parsedLog = savedLog ? JSON.parse(savedLog) : {};
+    const todayKey = getDateKey(new Date());
+
+    return Object.fromEntries(
+      Object.entries(parsedLog as Record<string, WorkoutLog>).map(
+        ([workoutId, log]) => [
+          workoutId,
+          log.completed && !log.completedAt
+            ? { ...log, completedAt: todayKey }
+            : log,
+        ],
+      ),
+    );
   } catch {
     return {};
   }
@@ -238,6 +287,9 @@ function App() {
     useState<Equipment | "any">("any");
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
+  const [calendarMonth, setCalendarMonth] = useState(
+    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+  );
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
   const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
   const [activeTimerMode, setActiveTimerMode] = useState<TimerMode>(
@@ -269,10 +321,47 @@ function App() {
     notes: "",
     score: "",
   };
+  const completedWorkouts = Object.entries(logs)
+    .filter(([, entry]) => entry.completed && entry.completedAt)
+    .map(([workoutId, entry]) => ({
+      log: entry,
+      workout: workouts.find((workout) => workout.id === workoutId),
+      workoutId,
+    }));
+  const completionsByDate = completedWorkouts.reduce<Record<string, typeof completedWorkouts>>(
+    (dates, entry) => {
+      const completedAt = entry.log.completedAt;
 
-  const completedCount = Object.values(logs).filter(
-    (entry) => entry.completed,
-  ).length;
+      if (!completedAt) {
+        return dates;
+      }
+
+      return {
+        ...dates,
+        [completedAt]: [...(dates[completedAt] ?? []), entry],
+      };
+    },
+    {},
+  );
+  const todayKey = getDateKey(new Date());
+  const weekStart = getStartOfWeek(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekStart.getDate() + 6);
+  const workoutsCompletedThisWeek = completedWorkouts.filter(({ log }) => {
+    if (!log.completedAt) {
+      return false;
+    }
+
+    const completedDate = new Date(`${log.completedAt}T00:00:00`);
+    return completedDate >= weekStart && completedDate <= weekEnd;
+  });
+  const calendarDays = getCalendarDays(calendarMonth);
+  const calendarMonthLabel = calendarMonth.toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+
+  const completedCount = completedWorkouts.length;
   const availableEquipmentCount = new Set(
     workouts.flatMap((workout) => workout.equipment),
   ).size;
@@ -422,13 +511,37 @@ function App() {
   }
 
   function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
-    setLogs((currentLogs) => ({
-      ...currentLogs,
-      [activeWorkout.id]: {
-        ...currentLog,
+    setLogs((currentLogs) => {
+      const existingLog = currentLogs[activeWorkout.id] ?? currentLog;
+      const nextEntry = {
+        ...existingLog,
         ...nextLog,
-      },
-    }));
+      };
+
+      if (nextLog.completed === true && !nextEntry.completedAt) {
+        nextEntry.completedAt = getDateKey(new Date());
+      }
+
+      if (nextLog.completed === false) {
+        delete nextEntry.completedAt;
+      }
+
+      return {
+        ...currentLogs,
+        [activeWorkout.id]: nextEntry,
+      };
+    });
+  }
+
+  function shiftCalendarMonth(monthDelta: number) {
+    setCalendarMonth(
+      (currentMonth) =>
+        new Date(
+          currentMonth.getFullYear(),
+          currentMonth.getMonth() + monthDelta,
+          1,
+        ),
+    );
   }
 
   return (
@@ -455,6 +568,10 @@ function App() {
             <div>
               <span>{completedCount}</span>
               <small>Logged</small>
+            </div>
+            <div>
+              <span>{workoutsCompletedThisWeek.length}</span>
+              <small>This week</small>
             </div>
             <div>
               <span>{availableEquipmentCount}</span>
@@ -713,6 +830,94 @@ function App() {
         </section>
       )}
 
+      {activeTab === "calendar" && (
+        <section
+          className="tab-panel tab-panel--narrow"
+          aria-labelledby="calendar-tab"
+        >
+          <article className="calendar-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Training calendar</p>
+                <h2>{calendarMonthLabel}</h2>
+              </div>
+              <div className="calendar-actions">
+                <button
+                  className="button button--ghost"
+                  onClick={() => shiftCalendarMonth(-1)}
+                  type="button"
+                >
+                  Prev
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => shiftCalendarMonth(1)}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div className="weekly-summary">
+              <span>{workoutsCompletedThisWeek.length}</span>
+              <div>
+                <strong>workouts done this week</strong>
+                <small>
+                  {getDateKey(weekStart)} to {getDateKey(weekEnd)}
+                </small>
+              </div>
+            </div>
+
+            <div className="calendar-weekdays" aria-hidden="true">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <span key={day}>{day}</span>
+              ))}
+            </div>
+
+            <div className="calendar-grid">
+              {calendarDays.map((date) => {
+                const dateKey = getDateKey(date);
+                const dayCompletions = completionsByDate[dateKey] ?? [];
+                const isCurrentMonth =
+                  date.getMonth() === calendarMonth.getMonth();
+
+                return (
+                  <div
+                    className={`calendar-day${
+                      isCurrentMonth ? "" : " is-muted"
+                    }${dateKey === todayKey ? " is-today" : ""}${
+                      dayCompletions.length > 0 ? " has-workout" : ""
+                    }`}
+                    key={dateKey}
+                  >
+                    <span>{date.getDate()}</span>
+                    {dayCompletions.length > 0 && (
+                      <small>{dayCompletions.length} WOD</small>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="calendar-list">
+              <h3>Completed workouts</h3>
+              {completedWorkouts.length === 0 ? (
+                <p>No completed workouts yet. Mark a workout complete in Log.</p>
+              ) : (
+                completedWorkouts.map(({ log, workout, workoutId }) => (
+                  <div className="calendar-list-item" key={workoutId}>
+                    <strong>{workout?.name ?? workoutId}</strong>
+                    <span>{log.completedAt}</span>
+                    {log.score && <small>{log.score}</small>}
+                  </div>
+                ))
+              )}
+            </div>
+          </article>
+        </section>
+      )}
+
       {activeTab === "log" && (
         <section className="tab-panel tab-panel--narrow" aria-labelledby="log-tab">
           <article className="log-card">
@@ -748,6 +953,11 @@ function App() {
               />
               Mark workout complete
             </label>
+            {currentLog.completedAt && (
+              <p className="completion-note">
+                Synced to calendar for {currentLog.completedAt}.
+              </p>
+            )}
           </article>
         </section>
       )}
