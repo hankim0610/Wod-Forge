@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 
 type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
-type AppTab = "today" | "clock" | "library" | "log";
+type AppTab = "today" | "clock" | "library" | "prs" | "log";
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -32,6 +33,19 @@ type WorkoutLog = {
   notes: string;
   completed: boolean;
   completedAt?: string;
+};
+
+type StrengthUnit = "lb" | "kg";
+
+type StrengthPR = {
+  id: string;
+  lift: string;
+  weight: number;
+  unit: StrengthUnit;
+  reps: number;
+  date: string;
+  notes: string;
+  createdAt: string;
 };
 
 const workouts: Workout[] = [
@@ -200,11 +214,27 @@ const appTabs: Array<{ value: AppTab; label: string; description: string }> = [
   { value: "today", label: "Today", description: "WOD briefing" },
   { value: "clock", label: "Clock", description: "Workout timers" },
   { value: "library", label: "Library", description: "Find workouts" },
+  { value: "prs", label: "PRs", description: "Strength records" },
   { value: "log", label: "Log", description: "Score and notes" },
 ];
 
+const strengthLiftOptions = [
+  "Bench Press",
+  "Back Squat",
+  "Deadlift",
+  "Clean",
+  "Clean and Jerk",
+  "Snatch",
+  "Overhead Squat",
+  "Front Squat",
+  "Strict Press",
+  "Push Press",
+  "Thruster",
+] as const;
+
 const prepDurationSeconds = 10;
 const logStorageKey = "wod-forge-log";
+const strengthRecordsStorageKey = "wod-forge-strength-prs";
 
 function formatTime(totalSeconds: number) {
   const safeSeconds = Math.max(totalSeconds, 0);
@@ -280,6 +310,23 @@ function getInitialLog(): Record<string, WorkoutLog> {
   }
 }
 
+function getInitialStrengthRecords(): StrengthPR[] {
+  try {
+    const savedRecords = window.localStorage.getItem(strengthRecordsStorageKey);
+    return savedRecords ? JSON.parse(savedRecords) : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizeWeightToPounds(weight: number, unit: StrengthUnit) {
+  return unit === "kg" ? weight * 2.20462 : weight;
+}
+
+function formatStrengthWeight(record: StrengthPR) {
+  return `${record.weight} ${record.unit}`;
+}
+
 function App() {
   const [selectedFocus, setSelectedFocus] = useState<Focus | "any">("any");
   const [selectedEquipment, setSelectedEquipment] =
@@ -290,6 +337,17 @@ function App() {
     () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   );
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
+  const [strengthRecords, setStrengthRecords] = useState<StrengthPR[]>(
+    getInitialStrengthRecords,
+  );
+  const [selectedStrengthLift, setSelectedStrengthLift] = useState<string>(
+    strengthLiftOptions[0],
+  );
+  const [strengthWeight, setStrengthWeight] = useState("");
+  const [strengthUnit, setStrengthUnit] = useState<StrengthUnit>("lb");
+  const [strengthReps, setStrengthReps] = useState("1");
+  const [strengthDate, setStrengthDate] = useState(getDateKey(new Date()));
+  const [strengthNotes, setStrengthNotes] = useState("");
   const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
   const [activeTimerMode, setActiveTimerMode] = useState<TimerMode>(
     getWorkoutTimerMode(workouts[0].type),
@@ -361,6 +419,29 @@ function App() {
   });
 
   const completedCount = completedWorkouts.length;
+  const sortedStrengthRecords = [...strengthRecords].sort((a, b) => {
+    const dateSort = b.date.localeCompare(a.date);
+    return dateSort === 0 ? b.createdAt.localeCompare(a.createdAt) : dateSort;
+  });
+  const heaviestStrengthRecordByLift = strengthRecords.reduce<
+    Record<string, StrengthPR>
+  >((records, record) => {
+    const currentRecord = records[record.lift];
+    const currentWeight = currentRecord
+      ? normalizeWeightToPounds(currentRecord.weight, currentRecord.unit)
+      : 0;
+    const recordWeight = normalizeWeightToPounds(record.weight, record.unit);
+
+    if (!currentRecord || recordWeight > currentWeight) {
+      return {
+        ...records,
+        [record.lift]: record,
+      };
+    }
+
+    return records;
+  }, {});
+  const strengthRecordCount = strengthRecords.length;
   const availableEquipmentCount = new Set(
     workouts.flatMap((workout) => workout.equipment),
   ).size;
@@ -412,6 +493,13 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
   }, [logs]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      strengthRecordsStorageKey,
+      JSON.stringify(strengthRecords),
+    );
+  }, [strengthRecords]);
 
   useEffect(() => {
     setActiveTimerMode(getWorkoutTimerMode(activeWorkout.type));
@@ -509,6 +597,43 @@ function App() {
     resetTimer();
   }
 
+  function addStrengthRecord(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const parsedWeight = Number(strengthWeight);
+    const parsedReps = Number(strengthReps);
+
+    if (!parsedWeight || parsedWeight <= 0 || !parsedReps || parsedReps <= 0) {
+      return;
+    }
+
+    const nextRecord: StrengthPR = {
+      id:
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}`,
+      lift: selectedStrengthLift,
+      weight: parsedWeight,
+      unit: strengthUnit,
+      reps: parsedReps,
+      date: strengthDate || getDateKey(new Date()),
+      notes: strengthNotes.trim(),
+      createdAt: new Date().toISOString(),
+    };
+
+    setStrengthRecords((currentRecords) => [nextRecord, ...currentRecords]);
+    setStrengthWeight("");
+    setStrengthReps("1");
+    setStrengthNotes("");
+    setStrengthDate(getDateKey(new Date()));
+  }
+
+  function deleteStrengthRecord(recordId: string) {
+    setStrengthRecords((currentRecords) =>
+      currentRecords.filter((record) => record.id !== recordId),
+    );
+  }
+
   function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
     setLogs((currentLogs) => {
       const existingLog = currentLogs[activeWorkout.id] ?? currentLog;
@@ -571,6 +696,10 @@ function App() {
             <div>
               <span>{workoutsCompletedThisWeek.length}</span>
               <small>This week</small>
+            </div>
+            <div>
+              <span>{strengthRecordCount}</span>
+              <small>PRs</small>
             </div>
             <div>
               <span>{availableEquipmentCount}</span>
@@ -830,6 +959,139 @@ function App() {
               >
                 Reset
               </button>
+            </div>
+          </article>
+        </section>
+      )}
+
+      {activeTab === "prs" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="prs-tab">
+          <article className="pr-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Strength PRs</p>
+                <h2>Record your lifts</h2>
+              </div>
+              <span className="pr-count">{strengthRecordCount} saved</span>
+            </div>
+
+            <form className="pr-form" onSubmit={addStrengthRecord}>
+              <label>
+                Lift
+                <select
+                  value={selectedStrengthLift}
+                  onChange={(event) =>
+                    setSelectedStrengthLift(event.target.value)
+                  }
+                >
+                  {strengthLiftOptions.map((lift) => (
+                    <option key={lift} value={lift}>
+                      {lift}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="pr-form-row">
+                <label>
+                  Weight
+                  <input
+                    min="0"
+                    inputMode="decimal"
+                    step="0.5"
+                    type="number"
+                    value={strengthWeight}
+                    onChange={(event) => setStrengthWeight(event.target.value)}
+                    placeholder="315"
+                  />
+                </label>
+                <label>
+                  Unit
+                  <select
+                    value={strengthUnit}
+                    onChange={(event) =>
+                      setStrengthUnit(event.target.value as StrengthUnit)
+                    }
+                  >
+                    <option value="lb">lb</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className="pr-form-row">
+                <label>
+                  Reps
+                  <input
+                    min="1"
+                    inputMode="numeric"
+                    type="number"
+                    value={strengthReps}
+                    onChange={(event) => setStrengthReps(event.target.value)}
+                  />
+                </label>
+                <label>
+                  Date
+                  <input
+                    type="date"
+                    value={strengthDate}
+                    onChange={(event) => setStrengthDate(event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <label>
+                Notes
+                <textarea
+                  value={strengthNotes}
+                  onChange={(event) => setStrengthNotes(event.target.value)}
+                  placeholder="How did it move? Any setup cues?"
+                />
+              </label>
+
+              <button className="button button--primary" type="submit">
+                Save PR
+              </button>
+            </form>
+
+            <div className="pr-history">
+              <h3>PR history</h3>
+              {sortedStrengthRecords.length === 0 ? (
+                <p>No strength PRs saved yet.</p>
+              ) : (
+                sortedStrengthRecords.map((record) => {
+                  const isHeaviest =
+                    heaviestStrengthRecordByLift[record.lift]?.id === record.id;
+
+                  return (
+                    <div
+                      className={`pr-record${isHeaviest ? " is-heaviest" : ""}`}
+                      key={record.id}
+                    >
+                      <div>
+                        <strong>
+                          {isHeaviest ? "🏆 " : ""}
+                          {record.lift}
+                        </strong>
+                        <span>
+                          {formatStrengthWeight(record)} x {record.reps}
+                        </span>
+                      </div>
+                      <div className="pr-record-meta">
+                        <span>{record.date}</span>
+                        {record.notes && <small>{record.notes}</small>}
+                        <button
+                          className="pr-delete"
+                          onClick={() => deleteStrengthRecord(record.id)}
+                          type="button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </article>
         </section>
