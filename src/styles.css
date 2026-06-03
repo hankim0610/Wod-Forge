@@ -48,6 +48,86 @@ a {
   padding: 48px 0;
 }
 
+.app-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
+  align-items: stretch;
+}
+
+.app-header > div:first-child {
+  min-height: 300px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 36px;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.78);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(18px);
+}
+
+.app-header h1 {
+  margin-bottom: 18px;
+}
+
+.tab-nav {
+  position: sticky;
+  top: env(safe-area-inset-top);
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 24px 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.88);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.tab-button {
+  border: 1px solid transparent;
+  border-radius: 20px;
+  padding: 12px 10px;
+  color: #cbd5e1;
+  background: transparent;
+  text-align: left;
+}
+
+.tab-button.is-active {
+  border-color: rgba(251, 113, 133, 0.7);
+  color: #f8fafc;
+  background: rgba(251, 113, 133, 0.14);
+}
+
+.tab-button strong,
+.tab-button span {
+  display: block;
+}
+
+.tab-button span {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tab-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.tab-panel--narrow {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  grid-template-columns: 1fr;
+}
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
@@ -514,12 +594,15 @@ textarea:focus {
 }
 
 @media (max-width: 920px) {
+  .app-header,
   .hero,
   .dashboard,
-  .controls {
+  .controls,
+  .tab-panel {
     grid-template-columns: 1fr;
   }
 
+  .app-header > div:first-child,
   .hero__content {
     min-height: auto;
   }
@@ -537,6 +620,7 @@ textarea:focus {
     padding: 20px 0;
   }
 
+  .app-header > div:first-child,
   .hero__content,
   .hero-card,
   .workout-panel,
@@ -553,6 +637,15 @@ textarea:focus {
 
   h1 {
     font-size: clamp(3rem, 17vw, 4.8rem);
+  }
+
+  .tab-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border-radius: 22px;
+  }
+
+  .tab-button span {
+    display: none;
   }
 
   .metric-grid,

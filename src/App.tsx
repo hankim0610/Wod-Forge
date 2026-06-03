@@ -4,6 +4,7 @@ type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
+type AppTab = "today" | "clock" | "library" | "log";
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -194,6 +195,13 @@ const timerModes: Array<{
   },
 ];
 
+const appTabs: Array<{ value: AppTab; label: string; description: string }> = [
+  { value: "today", label: "Today", description: "WOD briefing" },
+  { value: "clock", label: "Clock", description: "Workout timers" },
+  { value: "library", label: "Library", description: "Find workouts" },
+  { value: "log", label: "Log", description: "Score and notes" },
+];
+
 const prepDurationSeconds = 10;
 const logStorageKey = "wod-forge-log";
 
@@ -229,6 +237,7 @@ function App() {
   const [selectedEquipment, setSelectedEquipment] =
     useState<Equipment | "any">("any");
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
+  const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
   const [timerPhase, setTimerPhase] = useState<TimerPhase>("idle");
   const [activeTimerMode, setActiveTimerMode] = useState<TimerMode>(
@@ -341,104 +350,16 @@ function App() {
       });
     }, 1000);
 
-    return () => window.clearInterval(intervalId);
-  }, [timerPhase]);
-
-  useEffect(() => {
-    if (timerPhase !== "running") {
-      return;
-    }
-
-    const intervalId = window.setInterval(() => {
-      setElapsedSeconds((currentSeconds) => {
-        const nextSeconds = Math.min(currentSeconds + 1, workoutDurationSeconds);
-
-        if (nextSeconds >= workoutDurationSeconds) {
-          setTimerPhase("finished");
-        }
-
-        return nextSeconds;
-      });
-    }, 1000);
-
-    return () => window.clearInterval(intervalId);
-  }, [timerPhase, workoutDurationSeconds]);
-
-  function chooseWorkout(workoutId: string) {
-    setActiveWorkoutId(workoutId);
-  }
-
-  function generateWorkout() {
-    const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
-    const randomIndex = Math.floor(Math.random() * options.length);
-    setActiveWorkoutId(options[randomIndex].id);
-  }
-
-  function resetTimer() {
-    setTimerPhase("idle");
-    setElapsedSeconds(0);
-    setPrepSecondsLeft(prepDurationSeconds);
-  }
-
-  function handleStartPauseTimer() {
-    if (timerPhase === "running") {
-      setTimerPhase("paused");
-      return;
-    }
-
-    if (timerPhase === "paused") {
-      setTimerPhase("running");
-      return;
-    }
-
-    setElapsedSeconds(0);
-    setPrepSecondsLeft(prepDurationSeconds);
-    setTimerPhase("preparing");
-  }
-
-  function updateDurationMinutes(nextDuration: number) {
-    setCustomDurationMinutes(Math.max(1, nextDuration));
-    resetTimer();
-  }
-
-  function updateEmomIntervalMinutes(nextInterval: number) {
-    setEmomIntervalMinutes(Math.max(1, nextInterval));
-    resetTimer();
-  }
-
-  function selectTimerMode(mode: TimerMode) {
-    setActiveTimerMode(mode);
-    resetTimer();
-  }
-
-  function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
-    setLogs((currentLogs) => ({
-      ...currentLogs,
-      [activeWorkout.id]: {
-        ...currentLog,
-        ...nextLog,
-      },
-    }));
-  }
-
-  return (
+    return (
     <main className="app-shell">
-      <section className="hero">
-        <div className="hero__content">
+      <header className="app-header">
+        <div>
           <p className="eyebrow">CrossFit-style training planner</p>
-          <h1>Forge your next WOD with intent.</h1>
+          <h1>Wod Forge</h1>
           <p className="hero__lede">
-            Filter workouts by focus and equipment, generate a fresh session,
-            run the clock, and keep track of your score and notes.
+            Build a WOD, run the right clock, and keep your training notes in
+            one mobile-ready app.
           </p>
-          <div className="hero__actions">
-            <button className="button button--primary" onClick={generateWorkout}>
-              Generate WOD
-            </button>
-            <a className="button button--ghost" href="#library">
-              Browse library
-            </a>
-          </div>
         </div>
 
         <div className="hero-card" aria-label="Training summary">
@@ -460,86 +381,100 @@ function App() {
             </div>
           </div>
         </div>
-      </section>
+      </header>
 
-      <section className="controls" aria-label="Workout filters">
-        <label>
-          Focus
-          <select
-            value={selectedFocus}
-            onChange={(event) =>
-              setSelectedFocus(event.target.value as Focus | "any")
-            }
+      <nav className="tab-nav" aria-label="Primary app sections">
+        {appTabs.map((tab) => (
+          <button
+            className={`tab-button${activeTab === tab.value ? " is-active" : ""}`}
+            id={`${tab.value}-tab`}
+            key={tab.value}
+            onClick={() => setActiveTab(tab.value)}
+            type="button"
           >
-            {focusOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            <strong>{tab.label}</strong>
+            <span>{tab.description}</span>
+          </button>
+        ))}
+      </nav>
 
-        <label>
-          Equipment
-          <select
-            value={selectedEquipment}
-            onChange={(event) =>
-              setSelectedEquipment(event.target.value as Equipment | "any")
-            }
-          >
-            {equipmentOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+      {activeTab === "today" && (
+        <section className="tab-panel" aria-labelledby="today-tab">
+          <article className="hero__content">
+            <p className="eyebrow">Today&apos;s workout</p>
+            <h2>Forge your next WOD with intent.</h2>
+            <p className="hero__lede">
+              Generate a fresh session, review the plan, then jump to the clock
+              tab when you are ready to train.
+            </p>
+            <div className="hero__actions">
+              <button
+                className="button button--primary"
+                onClick={generateWorkout}
+                type="button"
+              >
+                Generate WOD
+              </button>
+              <button
+                className="button button--ghost"
+                onClick={() => setActiveTab("library")}
+                type="button"
+              >
+                Browse library
+              </button>
+              <button
+                className="button button--secondary"
+                onClick={() => setActiveTab("clock")}
+                type="button"
+              >
+                Open clock
+              </button>
+            </div>
+          </article>
 
-        <button className="button button--secondary" onClick={generateWorkout}>
-          Random from filters
-        </button>
-      </section>
+          <article className="workout-panel">
+            <div className="section-heading">
+              <p className="eyebrow">Workout briefing</p>
+              <h2>{activeWorkout.name}</h2>
+            </div>
 
-      <section className="dashboard">
-        <article className="workout-panel">
-          <div className="section-heading">
-            <p className="eyebrow">Workout briefing</p>
-            <h2>{activeWorkout.name}</h2>
-          </div>
+            <div className="tag-row">
+              <span>{activeWorkout.type}</span>
+              <span>{activeWorkout.focus}</span>
+              <span>{activeWorkout.intensity}</span>
+              <span>{activeWorkout.timeCapMinutes} min cap</span>
+            </div>
 
-          <div className="tag-row">
-            <span>{activeWorkout.type}</span>
-            <span>{activeWorkout.focus}</span>
-            <span>{activeWorkout.intensity}</span>
-            <span>{activeWorkout.timeCapMinutes} min cap</span>
-          </div>
+            <ol className="workout-steps">
+              {activeWorkout.workout.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
 
-          <ol className="workout-steps">
-            {activeWorkout.workout.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
+            <div className="coach-note">
+              <h3>Coach&apos;s cue</h3>
+              <p>{activeWorkout.coachingCue}</p>
+            </div>
 
-          <div className="coach-note">
-            <h3>Coach&apos;s cue</h3>
-            <p>{activeWorkout.coachingCue}</p>
-          </div>
+            <div className="coach-note coach-note--muted">
+              <h3>Scaling option</h3>
+              <p>{activeWorkout.scaling}</p>
+            </div>
 
-          <div className="coach-note coach-note--muted">
-            <h3>Scaling option</h3>
-            <p>{activeWorkout.scaling}</p>
-          </div>
+            <div className="equipment-list">
+              {activeWorkout.equipment.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </article>
+        </section>
+      )}
 
-          <div className="equipment-list">
-            {activeWorkout.equipment.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
-          </div>
-        </article>
-
-        <aside className="side-stack">
+      {activeTab === "clock" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="clock-tab">
           <article className="timer-card">
             <p className="eyebrow">WOD clock</p>
+            <h2>{activeWorkout.name}</h2>
             <div className="timer-modes" aria-label="Timer mode">
               {timerModes.map((mode) => (
                 <button
@@ -619,9 +554,89 @@ function App() {
               </button>
             </div>
           </article>
+        </section>
+      )}
 
+      {activeTab === "library" && (
+        <section className="tab-panel" id="library" aria-labelledby="library-tab">
+          <section className="controls" aria-label="Workout filters">
+            <label>
+              Focus
+              <select
+                value={selectedFocus}
+                onChange={(event) =>
+                  setSelectedFocus(event.target.value as Focus | "any")
+                }
+              >
+                {focusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              Equipment
+              <select
+                value={selectedEquipment}
+                onChange={(event) =>
+                  setSelectedEquipment(event.target.value as Equipment | "any")
+                }
+              >
+                {equipmentOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <button
+              className="button button--secondary"
+              onClick={generateWorkout}
+              type="button"
+            >
+              Random from filters
+            </button>
+          </section>
+
+          <section className="library">
+            <div className="section-heading">
+              <p className="eyebrow">Workout library</p>
+              <h2>{filteredWorkouts.length || workouts.length} workouts ready</h2>
+            </div>
+
+            <div className="library-grid">
+              {(filteredWorkouts.length > 0 ? filteredWorkouts : workouts).map(
+                (workout) => (
+                  <button
+                    className={`library-card${
+                      workout.id === activeWorkout.id ? " is-active" : ""
+                    }`}
+                    key={workout.id}
+                    onClick={() => chooseWorkout(workout.id)}
+                    type="button"
+                  >
+                    <span>{workout.type}</span>
+                    <strong>{workout.name}</strong>
+                    <small>
+                      {workout.timeCapMinutes} min · {workout.focus}
+                    </small>
+                    <small>{workout.movements.join(" / ")}</small>
+                  </button>
+                ),
+              )}
+            </div>
+          </section>
+        </section>
+      )}
+
+      {activeTab === "log" && (
+        <section className="tab-panel tab-panel--narrow" aria-labelledby="log-tab">
           <article className="log-card">
             <p className="eyebrow">Training log</p>
+            <h2>{activeWorkout.name}</h2>
             <label>
               Score
               <input
@@ -653,36 +668,8 @@ function App() {
               Mark workout complete
             </label>
           </article>
-        </aside>
-      </section>
-
-      <section className="library" id="library">
-        <div className="section-heading">
-          <p className="eyebrow">Workout library</p>
-          <h2>{filteredWorkouts.length || workouts.length} workouts ready</h2>
-        </div>
-
-        <div className="library-grid">
-          {(filteredWorkouts.length > 0 ? filteredWorkouts : workouts).map(
-            (workout) => (
-              <button
-                className={`library-card${
-                  workout.id === activeWorkout.id ? " is-active" : ""
-                }`}
-                key={workout.id}
-                onClick={() => chooseWorkout(workout.id)}
-              >
-                <span>{workout.type}</span>
-                <strong>{workout.name}</strong>
-                <small>
-                  {workout.timeCapMinutes} min · {workout.focus}
-                </small>
-                <small>{workout.movements.join(" / ")}</small>
-              </button>
-            ),
-          )}
-        </div>
-      </section>
+        </section>
+      )}
     </main>
   );
 }
