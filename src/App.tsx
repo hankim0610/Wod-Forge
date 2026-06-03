@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 type Focus = "conditioning" | "strength" | "engine" | "skill";
+type WorkoutStyle = "hyrox" | "crossfit" | "strength";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
@@ -12,7 +13,12 @@ type Equipment =
   | "barbell"
   | "kettlebell"
   | "rower"
-  | "jump rope";
+  | "jump rope"
+  | "ski erg"
+  | "sled"
+  | "wall ball"
+  | "box"
+  | "pull-up bar";
 
 type Workout = {
   id: string;
@@ -21,6 +27,7 @@ type Workout = {
   timeCapMinutes: number;
   focus: Focus;
   intensity: "moderate" | "hard" | "send it";
+  style: WorkoutStyle;
   equipment: Equipment[];
   movements: string[];
   workout: string[];
@@ -56,6 +63,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 16,
     focus: "conditioning",
     intensity: "hard",
+    style: "crossfit",
     equipment: ["barbell", "jump rope"],
     movements: ["Thrusters", "Double-unders", "Burpees"],
     workout: [
@@ -75,6 +83,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 20,
     focus: "engine",
     intensity: "moderate",
+    style: "hyrox",
     equipment: ["rower", "kettlebell", "bodyweight"],
     movements: ["Rowing", "Kettlebell swings", "Box step-overs"],
     workout: [
@@ -95,6 +104,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 18,
     focus: "strength",
     intensity: "hard",
+    style: "strength",
     equipment: ["dumbbells", "bodyweight"],
     movements: ["Dumbbell front squats", "Strict press", "Sit-ups"],
     workout: [
@@ -115,6 +125,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 15,
     focus: "skill",
     intensity: "hard",
+    style: "crossfit",
     equipment: ["bodyweight", "jump rope"],
     movements: ["Pull-ups", "Push-ups", "Air squats", "Double-unders"],
     workout: [
@@ -135,6 +146,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 22,
     focus: "strength",
     intensity: "moderate",
+    style: "strength",
     equipment: ["barbell", "kettlebell"],
     movements: ["Deadlifts", "Kettlebell lunges", "Plank holds"],
     workout: [
@@ -155,6 +167,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 14,
     focus: "conditioning",
     intensity: "send it",
+    style: "crossfit",
     equipment: ["bodyweight"],
     movements: ["Burpees", "Air squats", "Mountain climbers"],
     workout: [
@@ -170,22 +183,26 @@ const workouts: Workout[] = [
   },
 ];
 
-const focusOptions: Array<{ value: Focus | "any"; label: string }> = [
-  { value: "any", label: "Any focus" },
-  { value: "conditioning", label: "Conditioning" },
-  { value: "strength", label: "Strength" },
-  { value: "engine", label: "Engine" },
-  { value: "skill", label: "Skill" },
-];
-
-const equipmentOptions: Array<{ value: Equipment | "any"; label: string }> = [
-  { value: "any", label: "Any equipment" },
-  { value: "bodyweight", label: "Bodyweight" },
-  { value: "dumbbells", label: "Dumbbells" },
-  { value: "barbell", label: "Barbell" },
-  { value: "kettlebell", label: "Kettlebell" },
-  { value: "rower", label: "Rower" },
-  { value: "jump rope", label: "Jump rope" },
+const workoutStyleOptions: Array<{
+  value: WorkoutStyle;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "hyrox",
+    label: "Hyrox",
+    description: "Running, carries, ergs, and station work.",
+  },
+  {
+    value: "crossfit",
+    label: "CrossFit",
+    description: "Mixed modal WODs with classic couplets and chippers.",
+  },
+  {
+    value: "strength",
+    label: "Strength",
+    description: "Lifting-focused sessions with simple accessories.",
+  },
 ];
 
 const timerModes: Array<{
@@ -234,6 +251,7 @@ const strengthLiftOptions = [
 
 const prepDurationSeconds = 10;
 const logStorageKey = "wod-forge-log";
+const customWorkoutsStorageKey = "wod-forge-custom-workouts";
 const strengthRecordsStorageKey = "wod-forge-strength-prs";
 
 function formatTime(totalSeconds: number) {
@@ -293,6 +311,15 @@ function getInitialLog(): Record<string, WorkoutLog> {
   }
 }
 
+function getInitialCustomWorkouts(): Workout[] {
+  try {
+    const savedWorkouts = window.localStorage.getItem(customWorkoutsStorageKey);
+    return savedWorkouts ? JSON.parse(savedWorkouts) : [];
+  } catch {
+    return [];
+  }
+}
+
 function getInitialStrengthRecords(): StrengthPR[] {
   try {
     const savedRecords = window.localStorage.getItem(strengthRecordsStorageKey);
@@ -311,9 +338,13 @@ function formatStrengthWeight(record: StrengthPR) {
 }
 
 function App() {
-  const [selectedFocus, setSelectedFocus] = useState<Focus | "any">("any");
-  const [selectedEquipment, setSelectedEquipment] =
-    useState<Equipment | "any">("any");
+  const [selectedWorkoutStyle, setSelectedWorkoutStyle] =
+    useState<WorkoutStyle>("crossfit");
+  const [customWorkoutName, setCustomWorkoutName] = useState("");
+  const [customWorkoutText, setCustomWorkoutText] = useState("");
+  const [customWorkouts, setCustomWorkouts] = useState<Workout[]>(
+    getInitialCustomWorkouts,
+  );
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
@@ -338,20 +369,16 @@ function App() {
     workouts[0].timeCapMinutes,
   );
   const [emomIntervalMinutes, setEmomIntervalMinutes] = useState(1);
-  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
-    ?? workouts[0];
+  const allWorkouts = useMemo(
+    () => [...customWorkouts, ...workouts],
+    [customWorkouts],
+  );
+  const activeWorkout =
+    allWorkouts.find((workout) => workout.id === activeWorkoutId) ?? workouts[0];
 
-  const filteredWorkouts = useMemo(() => {
-    return workouts.filter((workout) => {
-      const focusMatch =
-        selectedFocus === "any" || workout.focus === selectedFocus;
-      const equipmentMatch =
-        selectedEquipment === "any" ||
-        workout.equipment.includes(selectedEquipment);
-
-      return focusMatch && equipmentMatch;
-    });
-  }, [selectedEquipment, selectedFocus]);
+  const selectedWorkoutStyleOption = workoutStyleOptions.find(
+    (style) => style.value === selectedWorkoutStyle,
+  );
 
   const currentLog = logs[activeWorkout.id] ?? {
     completed: false,
@@ -362,7 +389,7 @@ function App() {
     .filter(([, entry]) => entry.completed && entry.completedAt)
     .map(([workoutId, entry]) => ({
       log: entry,
-      workout: workouts.find((workout) => workout.id === workoutId),
+      workout: allWorkouts.find((workout) => workout.id === workoutId),
       workoutId,
     }));
   const completionsByDate = completedWorkouts.reduce<Record<string, typeof completedWorkouts>>(
@@ -434,7 +461,7 @@ function App() {
   const emomIntervalSeconds = sanitizedEmomIntervalMinutes * 60;
   const remainingSeconds = Math.max(workoutDurationSeconds - elapsedSeconds, 0);
   const timerHasFinished = timerPhase === "finished";
-  const isTimerActive = timerPhase === "preparing" || timerPhase === "running";
+  const isClockMode = timerPhase !== "idle";
   const totalEmomIntervals = Math.ceil(
     workoutDurationSeconds / emomIntervalSeconds,
   );
@@ -466,16 +493,27 @@ function App() {
     timerPhase === "preparing"
       ? "Your workout starts after the 10 second prep countdown."
       : timerHasFinished
-        ? "Time cap reached"
-        : activeTimerMode === "For Time"
-          ? `Finish the work before the ${sanitizedDurationMinutes}:00 cap.`
-          : activeTimerMode === "EMOM"
-            ? `Interval ${emomCurrentInterval} of ${totalEmomIntervals} (${sanitizedEmomIntervalMinutes} min each).`
-            : "Keep accumulating rounds and reps until the clock expires.";
+        ? currentLog.completed
+          ? "Workout saved to your log."
+          : "Time cap reached. Stop to save this workout."
+        : timerPhase === "paused"
+          ? "Clock paused. Resume when you are ready."
+          : activeTimerMode === "For Time"
+            ? `Finish the work before the ${sanitizedDurationMinutes}:00 cap.`
+            : activeTimerMode === "EMOM"
+              ? `Interval ${emomCurrentInterval} of ${totalEmomIntervals} (${sanitizedEmomIntervalMinutes} min each).`
+              : "Keep accumulating rounds and reps until the clock expires.";
 
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
   }, [logs]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      customWorkoutsStorageKey,
+      JSON.stringify(customWorkouts),
+    );
+  }, [customWorkouts]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -533,7 +571,52 @@ function App() {
   }, [timerPhase, workoutDurationSeconds]);
 
   function chooseWorkout(workoutId: string) {
+    const selectedWorkout = allWorkouts.find((workout) => workout.id === workoutId);
+
     setActiveWorkoutId(workoutId);
+
+    if (selectedWorkout) {
+      setActiveTimerMode(getWorkoutTimerMode(selectedWorkout.type));
+      setCustomDurationMinutes(selectedWorkout.timeCapMinutes);
+      resetTimer();
+    }
+
+    setActiveTab("today");
+  }
+
+  function saveCustomWorkout() {
+    const workoutLines = customWorkoutText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (workoutLines.length === 0) {
+      return;
+    }
+
+    const isStrength = selectedWorkoutStyle === "strength";
+    const nextWorkout: Workout = {
+      id: `custom-${selectedWorkoutStyle}-${Date.now()}`,
+      name: customWorkoutName.trim() || `${selectedWorkoutStyleOption?.label ?? "Custom"} WOD`,
+      type: isStrength ? "Strength" : selectedWorkoutStyle === "crossfit" ? "AMRAP" : "For Time",
+      timeCapMinutes: isStrength ? 30 : selectedWorkoutStyle === "hyrox" ? 35 : 15,
+      focus: isStrength ? "strength" : selectedWorkoutStyle === "hyrox" ? "engine" : "conditioning",
+      intensity: isStrength ? "moderate" : "hard",
+      style: selectedWorkoutStyle,
+      equipment: ["bodyweight"],
+      movements: workoutLines,
+      workout: workoutLines,
+      coachingCue: "Custom workout saved from Library.",
+      scaling: "Adjust reps, load, or movement difficulty as needed.",
+    };
+
+    setCustomWorkouts((currentWorkouts) => [nextWorkout, ...currentWorkouts]);
+    setActiveWorkoutId(nextWorkout.id);
+    setActiveTimerMode(getWorkoutTimerMode(nextWorkout.type));
+    setCustomDurationMinutes(nextWorkout.timeCapMinutes);
+    resetTimer();
+    setCustomWorkoutName("");
+    setCustomWorkoutText("");
     setActiveTab("today");
   }
 
@@ -557,6 +640,30 @@ function App() {
     setElapsedSeconds(0);
     setPrepSecondsLeft(prepDurationSeconds);
     setTimerPhase("preparing");
+  }
+
+  function stopAndSaveWorkout() {
+    const completedAt = getDateKey(new Date());
+    const fallbackScore =
+      activeTimerMode === "For Time"
+        ? `Stopped at ${formatTime(elapsedSeconds)}`
+        : `${formatTime(elapsedSeconds)} elapsed`;
+
+    setTimerPhase("finished");
+    setPrepSecondsLeft(prepDurationSeconds);
+    setLogs((currentLogs) => {
+      const existingLog = currentLogs[activeWorkout.id] ?? currentLog;
+
+      return {
+        ...currentLogs,
+        [activeWorkout.id]: {
+          ...existingLog,
+          completed: true,
+          completedAt,
+          score: existingLog.score || fallbackScore,
+        },
+      };
+    });
   }
 
   function updateDurationMinutes(nextDuration: number) {
@@ -727,87 +834,200 @@ function App() {
 
       {activeTab === "clock" && (
         <section className="tab-panel tab-panel--narrow" aria-labelledby="clock-tab">
-          <article className="timer-card">
+          <article className={`timer-card${isClockMode ? " timer-card--focus" : ""}`}>
             <p className="eyebrow">WOD clock</p>
             <h2>{activeWorkout.name}</h2>
-            <div className="timer-modes" aria-label="Timer mode">
-              {timerModes.map((mode) => (
+
+            {!isClockMode && (
+              <>
+                <div className="timer-modes" aria-label="Timer mode">
+                  {timerModes.map((mode) => (
+                    <button
+                      className={`timer-mode${
+                        activeTimerMode === mode.value ? " is-active" : ""
+                      }`}
+                      key={mode.value}
+                      onClick={() => selectTimerMode(mode.value)}
+                      type="button"
+                    >
+                      <strong>{mode.label}</strong>
+                      <span>{mode.description}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="timer-settings">
+                  <label>
+                    Total time
+                    <input
+                      min="1"
+                      type="number"
+                      value={customDurationMinutes}
+                      onChange={(event) =>
+                        updateDurationMinutes(Number(event.target.value))
+                      }
+                    />
+                    <small>minutes</small>
+                  </label>
+
+                  {activeTimerMode === "EMOM" && (
+                    <label>
+                      EMOM interval
+                      <select
+                        value={emomIntervalMinutes}
+                        onChange={(event) =>
+                          updateEmomIntervalMinutes(Number(event.target.value))
+                        }
+                      >
+                        {[1, 2, 3, 4, 5].map((minutes) => (
+                          <option key={minutes} value={minutes}>
+                            {minutes} min
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="clock-face">
+              <p className="timer-label">{timerLabel}</p>
+              <div className="timer" aria-live="polite">
+                {timerDisplay}
+              </div>
+              <div className="timer-details">
+                <span>{timerStatus}</span>
+                <span>Elapsed {formatTime(elapsedSeconds)}</span>
+                {activeTimerMode !== "For Time" && (
+                  <span>Remaining {formatTime(remainingSeconds)}</span>
+                )}
+              </div>
+            </div>
+
+            <div className="timer-actions">
+              {!isClockMode ? (
                 <button
-                  className={`timer-mode${
-                    activeTimerMode === mode.value ? " is-active" : ""
-                  }`}
-                  disabled={isTimerActive}
-                  key={mode.value}
-                  onClick={() => selectTimerMode(mode.value)}
+                  className="button button--primary"
+                  onClick={handleStartPauseTimer}
                   type="button"
                 >
-                  <strong>{mode.label}</strong>
-                  <span>{mode.description}</span>
+                  Start
                 </button>
-              ))}
-            </div>
-
-            <div className="timer-settings">
-              <label>
-                Total time
-                <input
-                  min="1"
-                  type="number"
-                  value={customDurationMinutes}
-                  onChange={(event) =>
-                    updateDurationMinutes(Number(event.target.value))
-                  }
-                />
-                <small>minutes</small>
-              </label>
-
-              {activeTimerMode === "EMOM" && (
-                <label>
-                  EMOM interval
-                  <select
-                    value={emomIntervalMinutes}
-                    onChange={(event) =>
-                      updateEmomIntervalMinutes(Number(event.target.value))
-                    }
+              ) : timerHasFinished ? (
+                currentLog.completed ? (
+                  <button
+                    className="button button--primary"
+                    onClick={resetTimer}
+                    type="button"
                   >
-                    {[1, 2, 3, 4, 5].map((minutes) => (
-                      <option key={minutes} value={minutes}>
-                        {minutes} min
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                    Set up next clock
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="button button--danger"
+                      onClick={stopAndSaveWorkout}
+                      type="button"
+                    >
+                      Stop
+                    </button>
+                    <button
+                      className="button button--ghost"
+                      onClick={resetTimer}
+                      type="button"
+                    >
+                      Reset without saving
+                    </button>
+                  </>
+                )
+              ) : (
+                <>
+                  <button
+                    className="button button--primary"
+                    disabled={timerPhase === "preparing"}
+                    onClick={handleStartPauseTimer}
+                    type="button"
+                  >
+                    {timerPhase === "paused" ? "Resume" : "Pause"}
+                  </button>
+                  <button
+                    className="button button--danger"
+                    onClick={stopAndSaveWorkout}
+                    type="button"
+                  >
+                    Stop
+                  </button>
+                </>
               )}
+            </div>
+          </article>
+        </section>
+      )}
+
+      {activeTab === "library" && (
+        <section className="tab-panel" id="library" aria-labelledby="library-tab">
+          <article className="library-builder">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Workout library</p>
+                <h2>Choose workout style</h2>
+              </div>
             </div>
 
-            <p className="timer-label">{timerLabel}</p>
-            <div className="timer" aria-live="polite">
-              {timerDisplay}
-            </div>
-            <div className="timer-details">
-              <span>{timerStatus}</span>
-              <span>Elapsed {formatTime(elapsedSeconds)}</span>
-              {activeTimerMode !== "For Time" && (
-                <span>Remaining {formatTime(remainingSeconds)}</span>
-              )}
-            </div>
-            <div className="timer-actions">
-              <button
-                className="button button--primary"
-                disabled={timerHasFinished || timerPhase === "preparing"}
-                onClick={handleStartPauseTimer}
-                type="button"
+            <label className="library-select">
+              Workout style
+              <select
+                value={selectedWorkoutStyle}
+                onChange={(event) =>
+                  setSelectedWorkoutStyle(event.target.value as WorkoutStyle)
+                }
               >
-                {timerPhase === "running" ? "Pause" : "Start"}
-              </button>
-              <button
-                className="button button--ghost"
-                onClick={resetTimer}
-                type="button"
-              >
-                Reset
-              </button>
+                {workoutStyleOptions.map((style) => (
+                  <option key={style.value} value={style.value}>
+                    {style.label}
+                  </option>
+                ))}
+              </select>
+              <small>{selectedWorkoutStyleOption?.description}</small>
+            </label>
+          </article>
+
+          <article className="custom-wod-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Custom WOD</p>
+                <h2>Write today&apos;s workout</h2>
+              </div>
             </div>
+
+            <label>
+              Workout name
+              <input
+                value={customWorkoutName}
+                onChange={(event) => setCustomWorkoutName(event.target.value)}
+                placeholder={`${selectedWorkoutStyleOption?.label ?? "Custom"} WOD`}
+              />
+            </label>
+
+            <label>
+              WOD details
+              <textarea
+                className="custom-wod-input"
+                value={customWorkoutText}
+                onChange={(event) => setCustomWorkoutText(event.target.value)}
+                placeholder={"Example:\n800m run\n40 wall balls\n20 burpees"}
+              />
+            </label>
+
+            <button
+              className="button button--primary"
+              disabled={customWorkoutText.trim().length === 0}
+              onClick={saveCustomWorkout}
+              type="button"
+            >
+              Save to Today
+            </button>
           </article>
         </section>
       )}

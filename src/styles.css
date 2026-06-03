@@ -139,11 +139,12 @@ a {
 .hero-card,
 .week-card,
 .controls,
+.library-builder,
+.custom-wod-card,
 .workout-panel,
 .timer-card,
 .pr-card,
-.log-card,
-.library-card {
+.log-card {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 23, 42, 0.78);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
@@ -248,6 +249,12 @@ h3 {
   color: #f8fafc;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.button--danger {
+  color: #fff1f2;
+  border: 1px solid rgba(244, 63, 94, 0.55);
+  background: rgba(244, 63, 94, 0.18);
 }
 
 .hero-card {
@@ -457,6 +464,8 @@ textarea:focus {
   align-items: start;
 }
 
+.library-builder,
+.custom-wod-card,
 .workout-panel,
 .timer-card,
 .pr-card,
@@ -547,6 +556,46 @@ textarea:focus {
 .side-stack {
   display: grid;
   gap: 24px;
+}
+
+.timer-card--focus {
+  min-height: min(620px, calc(100vh - 220px));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.timer-card--focus h2 {
+  margin-bottom: 18px;
+}
+
+.clock-face {
+  display: grid;
+  gap: 10px;
+}
+
+.timer-card--focus .clock-face {
+  flex: 1;
+  align-content: center;
+}
+
+.timer-card--focus .timer-label {
+  margin-top: 0;
+}
+
+.timer-card--focus .timer {
+  margin: 0;
+  font-size: clamp(4.5rem, 20vw, 8.5rem);
+}
+
+.timer-card--focus .timer-details {
+  display: none;
+}
+
+.timer-card--focus .timer-actions {
+  justify-content: center;
+  margin-top: 28px;
 }
 
 .timer-modes {
@@ -671,11 +720,11 @@ textarea:focus {
 
 .movement-tile {
   min-height: 52px;
-  border: 1px solid rgba(248, 250, 252, 0.72);
+  border: 1px solid rgba(244, 63, 94, 0.55);
   border-radius: 20px;
   padding: 10px 12px;
-  color: #f8fafc;
-  background: transparent;
+  color: #fff1f2;
+  background: rgba(244, 63, 94, 0.18);
   font-weight: 900;
   letter-spacing: -0.02em;
   text-align: center;
@@ -687,17 +736,17 @@ textarea:focus {
 }
 
 .movement-tile:hover {
-  color: #ffffff;
-  border-color: #ffffff;
-  background: rgba(255, 255, 255, 0.04);
+  color: #fff7f8;
+  border-color: rgba(244, 63, 94, 0.82);
+  background: rgba(244, 63, 94, 0.24);
 }
 
 .movement-tile.is-active {
-  border-color: #ffffff;
+  border-color: rgba(244, 63, 94, 0.95);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(244, 63, 94, 0.32);
   box-shadow:
-    0 0 0 3px rgba(255, 255, 255, 0.08),
+    0 0 0 3px rgba(244, 63, 94, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
@@ -832,46 +881,34 @@ textarea:focus {
   height: 18px;
 }
 
-.library {
-  margin-top: 32px;
-}
-
-.library-grid {
+.library-builder {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 18px;
+  gap: 18px;
 }
 
-.library-card {
-  border-radius: 24px;
-  padding: 20px;
-  color: inherit;
-  text-align: left;
+.library-select {
+  display: grid;
+  gap: 8px;
 }
 
-.library-card.is-active {
-  border-color: rgba(251, 113, 133, 0.78);
-  background: rgba(251, 113, 133, 0.12);
-}
-
-.library-card span {
-  color: #fb7185;
-  font-size: 0.78rem;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.library-card strong {
-  display: block;
-  margin: 8px 0;
-  font-size: 1.18rem;
-}
-
-.library-card small {
-  display: block;
+.library-select small {
   color: #94a3b8;
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.library-section-spacer {
+  height: 10px;
+}
+
+.custom-wod-card {
+  display: grid;
+  gap: 18px;
+}
+
+.custom-wod-input {
+  min-height: 220px;
+  line-height: 1.55;
 }
 
 @media (max-width: 920px) {
@@ -888,9 +925,6 @@ textarea:focus {
     min-height: auto;
   }
 
-  .library-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 620px) {
@@ -905,9 +939,11 @@ textarea:focus {
   .hero__content,
   .hero-card,
   .week-card,
+  .library-builder,
+  .custom-wod-card,
   .workout-panel,
   .timer-card,
-    .pr-card,
+  .pr-card,
   .log-card {
     border-radius: 24px;
     padding: 22px;
@@ -936,8 +972,7 @@ textarea:focus {
     display: none;
   }
 
-  .metric-grid,
-  .library-grid {
+  .metric-grid {
     grid-template-columns: 1fr;
   }
 
