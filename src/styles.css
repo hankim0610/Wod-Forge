@@ -925,17 +925,24 @@ textarea:focus {
   border-radius: 16px;
   padding: 10px 12px;
   display: flex;
-  gap: 10px;
+  gap: 0.65em;
   align-items: center;
   color: #f8fafc;
   background: transparent;
   font-weight: 900;
+  line-height: 1;
 }
 
 .equipment-checkbox input {
-  width: 18px;
-  height: 18px;
+  width: 1em;
+  height: 1em;
+  flex: 0 0 1em;
+  margin: 0;
   accent-color: #fb7185;
+}
+
+.equipment-checkbox span {
+  color: #f8fafc;
 }
 
 .equipment-checkbox:has(input:checked) {
@@ -956,9 +963,11 @@ textarea:focus {
 }
 
 .library-card {
+  appearance: none;
   border-radius: 24px;
   padding: 20px;
   color: #f8fafc;
+  background: rgba(15, 23, 42, 0.78);
   text-align: left;
 }
 
@@ -984,7 +993,24 @@ textarea:focus {
 
 .library-card small {
   display: block;
-  color: #94a3b8;
+  color: #cbd5e1;
+  font-weight: 700;
+}
+
+.library-card * {
+  color: inherit;
+}
+
+.library-card > span {
+  color: #fb7185;
+}
+
+.library-card > strong {
+  color: #ffffff;
+}
+
+.library-card > small {
+  color: #cbd5e1;
 }
 
 @media (max-width: 920px) {
