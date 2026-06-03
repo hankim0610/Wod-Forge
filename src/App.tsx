@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 
 type Focus = "conditioning" | "strength" | "engine" | "skill";
+type WorkoutStyle = "hyrox" | "crossfit" | "strength";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
@@ -12,7 +13,12 @@ type Equipment =
   | "barbell"
   | "kettlebell"
   | "rower"
-  | "jump rope";
+  | "jump rope"
+  | "ski erg"
+  | "sled"
+  | "wall ball"
+  | "box"
+  | "pull-up bar";
 
 type Workout = {
   id: string;
@@ -21,6 +27,7 @@ type Workout = {
   timeCapMinutes: number;
   focus: Focus;
   intensity: "moderate" | "hard" | "send it";
+  style: WorkoutStyle;
   equipment: Equipment[];
   movements: string[];
   workout: string[];
@@ -56,6 +63,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 16,
     focus: "conditioning",
     intensity: "hard",
+    style: "crossfit",
     equipment: ["barbell", "jump rope"],
     movements: ["Thrusters", "Double-unders", "Burpees"],
     workout: [
@@ -75,6 +83,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 20,
     focus: "engine",
     intensity: "moderate",
+    style: "hyrox",
     equipment: ["rower", "kettlebell", "bodyweight"],
     movements: ["Rowing", "Kettlebell swings", "Box step-overs"],
     workout: [
@@ -95,6 +104,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 18,
     focus: "strength",
     intensity: "hard",
+    style: "strength",
     equipment: ["dumbbells", "bodyweight"],
     movements: ["Dumbbell front squats", "Strict press", "Sit-ups"],
     workout: [
@@ -115,6 +125,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 15,
     focus: "skill",
     intensity: "hard",
+    style: "crossfit",
     equipment: ["bodyweight", "jump rope"],
     movements: ["Pull-ups", "Push-ups", "Air squats", "Double-unders"],
     workout: [
@@ -135,6 +146,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 22,
     focus: "strength",
     intensity: "moderate",
+    style: "strength",
     equipment: ["barbell", "kettlebell"],
     movements: ["Deadlifts", "Kettlebell lunges", "Plank holds"],
     workout: [
@@ -155,6 +167,7 @@ const workouts: Workout[] = [
     timeCapMinutes: 14,
     focus: "conditioning",
     intensity: "send it",
+    style: "crossfit",
     equipment: ["bodyweight"],
     movements: ["Burpees", "Air squats", "Mountain climbers"],
     workout: [
@@ -170,22 +183,40 @@ const workouts: Workout[] = [
   },
 ];
 
-const focusOptions: Array<{ value: Focus | "any"; label: string }> = [
-  { value: "any", label: "Any focus" },
-  { value: "conditioning", label: "Conditioning" },
-  { value: "strength", label: "Strength" },
-  { value: "engine", label: "Engine" },
-  { value: "skill", label: "Skill" },
+const workoutStyleOptions: Array<{
+  value: WorkoutStyle;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "hyrox",
+    label: "Hyrox",
+    description: "Running, carries, ergs, and station work.",
+  },
+  {
+    value: "crossfit",
+    label: "CrossFit",
+    description: "Mixed modal WODs with classic couplets and chippers.",
+  },
+  {
+    value: "strength",
+    label: "Strength",
+    description: "Lifting-focused sessions with simple accessories.",
+  },
 ];
 
-const equipmentOptions: Array<{ value: Equipment | "any"; label: string }> = [
-  { value: "any", label: "Any equipment" },
+const libraryEquipmentOptions: Array<{ value: Equipment; label: string }> = [
   { value: "bodyweight", label: "Bodyweight" },
   { value: "dumbbells", label: "Dumbbells" },
   { value: "barbell", label: "Barbell" },
   { value: "kettlebell", label: "Kettlebell" },
   { value: "rower", label: "Rower" },
   { value: "jump rope", label: "Jump rope" },
+  { value: "ski erg", label: "Ski erg" },
+  { value: "sled", label: "Sled" },
+  { value: "wall ball", label: "Wall ball" },
+  { value: "box", label: "Box" },
+  { value: "pull-up bar", label: "Pull-up bar" },
 ];
 
 const timerModes: Array<{
@@ -310,10 +341,129 @@ function formatStrengthWeight(record: StrengthPR) {
   return `${record.weight} ${record.unit}`;
 }
 
+const generatedWorkoutTemplates: Workout[] = [
+  {
+    id: "hyrox-engine-builder",
+    name: "Hyrox Engine Builder",
+    type: "For Time",
+    timeCapMinutes: 28,
+    focus: "engine",
+    intensity: "hard",
+    style: "hyrox",
+    equipment: ["rower", "sled", "wall ball", "kettlebell"],
+    movements: ["Row", "Sled push", "Farmers carry", "Wall balls"],
+    workout: [
+      "800 meter run",
+      "750 meter row",
+      "40 meter sled push",
+      "100 meter farmers carry",
+      "50 wall balls",
+    ],
+    coachingCue: "Keep the run controlled so the stations stay unbroken or close to it.",
+    scaling: "Generated Hyrox-style station workout.",
+  },
+  {
+    id: "crossfit-classic-mix",
+    name: "CrossFit Classic Mix",
+    type: "AMRAP",
+    timeCapMinutes: 18,
+    focus: "conditioning",
+    intensity: "hard",
+    style: "crossfit",
+    equipment: ["barbell", "pull-up bar", "jump rope"],
+    movements: ["Power cleans", "Pull-ups", "Double-unders"],
+    workout: [
+      "8 power cleans",
+      "10 pull-ups",
+      "40 double-unders",
+      "12 burpees",
+    ],
+    coachingCue: "Pick small sets early and keep transitions tight.",
+    scaling: "Generated CrossFit-style mixed modal workout.",
+  },
+  {
+    id: "strength-total-builder",
+    name: "Strength Total Builder",
+    type: "Strength",
+    timeCapMinutes: 30,
+    focus: "strength",
+    intensity: "moderate",
+    style: "strength",
+    equipment: ["barbell", "dumbbells", "box"],
+    movements: ["Back squat", "Dumbbell rows", "Box step-ups"],
+    workout: [
+      "Every 5 minutes for 5 rounds:",
+      "5 back squats",
+      "10 dumbbell rows per side",
+      "12 box step-ups",
+    ],
+    coachingCue: "Move with quality and add load only when every rep looks the same.",
+    scaling: "Generated strength-focused session.",
+  },
+];
+
+const movementSubstitutions: Array<{
+  equipment: Equipment;
+  patterns: string[];
+  replacement: string;
+  movement: string;
+}> = [
+  { equipment: "rower", patterns: ["row"], replacement: "run", movement: "Run" },
+  { equipment: "ski erg", patterns: ["ski erg"], replacement: "run", movement: "Run" },
+  { equipment: "sled", patterns: ["sled push", "sled pull"], replacement: "bear crawl", movement: "Bear crawl" },
+  { equipment: "wall ball", patterns: ["wall balls", "wall ball"], replacement: "squat jumps", movement: "Squat jumps" },
+  { equipment: "kettlebell", patterns: ["kettlebell", "farmers carry"], replacement: "backpack", movement: "Loaded backpack work" },
+  { equipment: "barbell", patterns: ["power cleans", "back squats", "back squat", "barbell"], replacement: "dumbbell", movement: "Dumbbell variation" },
+  { equipment: "dumbbells", patterns: ["dumbbell", "dumbbells"], replacement: "backpack", movement: "Backpack variation" },
+  { equipment: "jump rope", patterns: ["double-unders", "single-unders", "jump rope"], replacement: "line hops", movement: "Line hops" },
+  { equipment: "pull-up bar", patterns: ["pull-ups", "pull-up"], replacement: "bent-over backpack rows", movement: "Bent-over backpack rows" },
+  { equipment: "box", patterns: ["box step-ups", "box step-overs", "box"], replacement: "reverse lunges", movement: "Reverse lunges" },
+];
+
+function adaptWorkoutToEquipment(
+  template: Workout,
+  availableEquipment: Equipment[],
+): Workout {
+  const missingEquipment = template.equipment.filter(
+    (item) => item !== "bodyweight" && !availableEquipment.includes(item),
+  );
+  const substitutions = movementSubstitutions.filter((substitution) =>
+    missingEquipment.includes(substitution.equipment),
+  );
+
+  if (substitutions.length === 0) {
+    return template;
+  }
+
+  function adaptText(value: string) {
+    return substitutions.reduce((currentValue, substitution) => {
+      return substitution.patterns.reduce((nextValue, pattern) => {
+        return nextValue.replace(new RegExp(pattern, "gi"), substitution.replacement);
+      }, currentValue);
+    }, value);
+  }
+
+  const movementSet = new Set(template.movements.map(adaptText));
+  substitutions.forEach((substitution) => movementSet.add(substitution.movement));
+
+  return {
+    ...template,
+    id: `${template.id}-adapted-${Date.now()}`,
+    name: `${template.name} (Adapted)`,
+    equipment: template.equipment.filter((item) => availableEquipment.includes(item)),
+    movements: Array.from(movementSet),
+    workout: template.workout.map(adaptText),
+    scaling: `Auto-adapted for missing equipment: ${missingEquipment.join(", ")}.`,
+  };
+}
+
 function App() {
-  const [selectedFocus, setSelectedFocus] = useState<Focus | "any">("any");
-  const [selectedEquipment, setSelectedEquipment] =
-    useState<Equipment | "any">("any");
+  const [selectedWorkoutStyle, setSelectedWorkoutStyle] =
+    useState<WorkoutStyle>("crossfit");
+  const [availableLibraryEquipment, setAvailableLibraryEquipment] = useState<
+    Equipment[]
+  >(["bodyweight", "dumbbells", "rower"]);
+  const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
@@ -338,20 +488,13 @@ function App() {
     workouts[0].timeCapMinutes,
   );
   const [emomIntervalMinutes, setEmomIntervalMinutes] = useState(1);
-  const activeWorkout = workouts.find((workout) => workout.id === activeWorkoutId)
-    ?? workouts[0];
+  const activeWorkout = generatedWorkout ??
+    workouts.find((workout) => workout.id === activeWorkoutId) ??
+    workouts[0];
 
-  const filteredWorkouts = useMemo(() => {
-    return workouts.filter((workout) => {
-      const focusMatch =
-        selectedFocus === "any" || workout.focus === selectedFocus;
-      const equipmentMatch =
-        selectedEquipment === "any" ||
-        workout.equipment.includes(selectedEquipment);
-
-      return focusMatch && equipmentMatch;
-    });
-  }, [selectedEquipment, selectedFocus]);
+  const styleWorkouts = useMemo(() => {
+    return workouts.filter((workout) => workout.style === selectedWorkoutStyle);
+  }, [selectedWorkoutStyle]);
 
   const currentLog = logs[activeWorkout.id] ?? {
     completed: false,
@@ -426,7 +569,7 @@ function App() {
   }, {});
   const strengthRecordCount = strengthRecords.length;
   const availableEquipmentCount = new Set(
-    workouts.flatMap((workout) => workout.equipment),
+    [...workouts, ...generatedWorkoutTemplates].flatMap((workout) => workout.equipment),
   ).size;
   const sanitizedDurationMinutes = Math.max(1, customDurationMinutes);
   const sanitizedEmomIntervalMinutes = Math.max(1, emomIntervalMinutes);
@@ -537,7 +680,35 @@ function App() {
   }, [timerPhase, workoutDurationSeconds]);
 
   function chooseWorkout(workoutId: string) {
+    setGeneratedWorkout(null);
     setActiveWorkoutId(workoutId);
+    setActiveTab("today");
+  }
+
+  function toggleLibraryEquipment(equipment: Equipment) {
+    setAvailableLibraryEquipment((currentEquipment) =>
+      currentEquipment.includes(equipment)
+        ? currentEquipment.filter((item) => item !== equipment)
+        : [...currentEquipment, equipment],
+    );
+  }
+
+  function generateWorkoutFromStyle() {
+    const templates = generatedWorkoutTemplates.filter(
+      (workout) => workout.style === selectedWorkoutStyle,
+    );
+    const sourceWorkouts = templates.length > 0 ? templates : styleWorkouts;
+    const template = sourceWorkouts[Math.floor(Math.random() * sourceWorkouts.length)];
+    const nextWorkout = adaptWorkoutToEquipment(
+      template,
+      availableLibraryEquipment,
+    );
+
+    setGeneratedWorkout(nextWorkout);
+    setActiveWorkoutId(nextWorkout.id);
+    setActiveTimerMode(getWorkoutTimerMode(nextWorkout.type));
+    setCustomDurationMinutes(nextWorkout.timeCapMinutes);
+    resetTimer();
     setActiveTab("today");
   }
 
@@ -883,6 +1054,99 @@ function App() {
               )}
             </div>
           </article>
+        </section>
+      )}
+
+      {activeTab === "library" && (
+        <section className="tab-panel" id="library" aria-labelledby="library-tab">
+          <article className="library-builder">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Workout library</p>
+                <h2>Generate a workout</h2>
+              </div>
+            </div>
+
+            <div className="style-grid" aria-label="Workout style">
+              {workoutStyleOptions.map((style) => (
+                <button
+                  className={`style-card${
+                    selectedWorkoutStyle === style.value ? " is-active" : ""
+                  }`}
+                  key={style.value}
+                  onClick={() => setSelectedWorkoutStyle(style.value)}
+                  type="button"
+                >
+                  <strong>{style.label}</strong>
+                  <span>{style.description}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="equipment-picker">
+              <div>
+                <p className="eyebrow">Available equipment</p>
+                <h3>Tap what you have</h3>
+                <p>
+                  If equipment is missing, Wod Forge automatically swaps those
+                  movements for available alternatives.
+                </p>
+              </div>
+              <div className="equipment-chip-grid">
+                {libraryEquipmentOptions.map((equipment) => (
+                  <button
+                    className={`equipment-chip${
+                      availableLibraryEquipment.includes(equipment.value)
+                        ? " is-active"
+                        : ""
+                    }`}
+                    key={equipment.value}
+                    onClick={() => toggleLibraryEquipment(equipment.value)}
+                    type="button"
+                  >
+                    {equipment.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              className="button button--primary"
+              onClick={generateWorkoutFromStyle}
+              type="button"
+            >
+              Generate {workoutStyleOptions.find((style) => style.value === selectedWorkoutStyle)?.label} workout
+            </button>
+          </article>
+
+          <section className="library">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Recommended workouts</p>
+                <h2>{styleWorkouts.length} ready-made options</h2>
+              </div>
+            </div>
+
+            <div className="library-grid">
+              {styleWorkouts.map((workout) => (
+                <button
+                  className={`library-card${
+                    workout.id === activeWorkout.id ? " is-active" : ""
+                  }`}
+                  key={workout.id}
+                  onClick={() => chooseWorkout(workout.id)}
+                  type="button"
+                >
+                  <span>{workout.style}</span>
+                  <strong>{workout.name}</strong>
+                  <small>
+                    {workout.timeCapMinutes} min · {workout.type}
+                  </small>
+                  <small>{workout.movements.join(" / ")}</small>
+                </button>
+              ))}
+            </div>
+          </section>
         </section>
       )}
 

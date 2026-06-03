@@ -139,6 +139,7 @@ a {
 .hero-card,
 .week-card,
 .controls,
+.library-builder,
 .workout-panel,
 .timer-card,
 .pr-card,
@@ -463,6 +464,7 @@ textarea:focus {
   align-items: start;
 }
 
+.library-builder,
 .workout-panel,
 .timer-card,
 .pr-card,
@@ -879,6 +881,79 @@ textarea:focus {
   height: 18px;
 }
 
+.library-builder {
+  display: grid;
+  gap: 18px;
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.style-card {
+  min-height: 118px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  padding: 16px;
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.055);
+  text-align: left;
+}
+
+.style-card.is-active {
+  border-color: rgba(251, 113, 133, 0.78);
+  background: rgba(251, 113, 133, 0.13);
+}
+
+.style-card strong,
+.style-card span {
+  display: block;
+}
+
+.style-card span {
+  margin-top: 8px;
+  color: #94a3b8;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.equipment-picker {
+  border-radius: 22px;
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.equipment-picker p:last-child {
+  margin-bottom: 0;
+  color: #94a3b8;
+}
+
+.equipment-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.equipment-chip {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: #f8fafc;
+  background: transparent;
+  font-size: 0.84rem;
+  font-weight: 900;
+}
+
+.equipment-chip.is-active {
+  border-color: rgba(52, 211, 153, 0.62);
+  color: #ecfdf5;
+  background: rgba(16, 185, 129, 0.16);
+}
+
 .library {
   margin-top: 32px;
 }
@@ -935,7 +1010,8 @@ textarea:focus {
     min-height: auto;
   }
 
-  .library-grid {
+  .library-grid,
+  .style-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -952,9 +1028,10 @@ textarea:focus {
   .hero__content,
   .hero-card,
   .week-card,
+  .library-builder,
   .workout-panel,
   .timer-card,
-    .pr-card,
+  .pr-card,
   .log-card {
     border-radius: 24px;
     padding: 22px;
@@ -984,7 +1061,8 @@ textarea:focus {
   }
 
   .metric-grid,
-  .library-grid {
+  .library-grid,
+  .style-grid {
     grid-template-columns: 1fr;
   }
 
