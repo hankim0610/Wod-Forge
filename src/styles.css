@@ -745,6 +745,9 @@ textarea:focus {
   padding: 16px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "main meta"
+    "delete delete";
   gap: 14px;
   align-items: start;
   background: rgba(255, 255, 255, 0.055);
@@ -756,6 +759,10 @@ textarea:focus {
     radial-gradient(circle at 94% 16%, rgba(251, 191, 36, 0.3), transparent 42px),
     linear-gradient(135deg, rgba(120, 53, 15, 0.42), rgba(15, 23, 42, 0.76));
   box-shadow: 0 16px 36px rgba(251, 191, 36, 0.12);
+}
+
+.pr-record-main {
+  grid-area: main;
 }
 
 .pr-record strong,
@@ -776,20 +783,28 @@ textarea:focus {
 }
 
 .pr-record-meta {
+  grid-area: meta;
   display: grid;
   gap: 6px;
   justify-items: end;
   text-align: right;
 }
 
-.pr-delete {
+.pr-delete-link {
+  grid-area: delete;
+  width: fit-content;
   border: 0;
-  border-radius: 999px;
-  padding: 6px 10px;
+  padding: 0;
+  color: #fda4af;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.pr-delete-link:hover {
   color: #fecdd3;
-  background: rgba(251, 113, 133, 0.13);
-  font-size: 0.78rem;
-  font-weight: 900;
 }
 
 .log-card {
@@ -922,6 +937,13 @@ textarea:focus {
   .pr-form-row,
   .pr-record {
     grid-template-columns: 1fr;
+  }
+
+  .pr-record {
+    grid-template-areas:
+      "main"
+      "meta"
+      "delete";
   }
 
   .pr-record-meta {

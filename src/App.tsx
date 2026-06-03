@@ -1068,7 +1068,7 @@ function App() {
                       className={`pr-record${isHeaviest ? " is-heaviest" : ""}`}
                       key={record.id}
                     >
-                      <div>
+                      <div className="pr-record-main">
                         <strong>
                           {isHeaviest ? "🏆 " : ""}
                           {record.lift}
@@ -1076,18 +1076,19 @@ function App() {
                         <span>
                           {formatStrengthWeight(record)} x {record.reps}
                         </span>
+                        {record.notes && <small>{record.notes}</small>}
                       </div>
                       <div className="pr-record-meta">
                         <span>{record.date}</span>
-                        {record.notes && <small>{record.notes}</small>}
-                        <button
-                          className="pr-delete"
-                          onClick={() => deleteStrengthRecord(record.id)}
-                          type="button"
-                        >
-                          Delete
-                        </button>
+                        {isHeaviest && <small>Heaviest for {record.lift}</small>}
                       </div>
+                      <button
+                        className="pr-delete-link"
+                        onClick={() => deleteStrengthRecord(record.id)}
+                        type="button"
+                      >
+                        Remove record
+                      </button>
                     </div>
                   );
                 })
