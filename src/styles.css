@@ -405,6 +405,26 @@ textarea:focus {
   font-size: 0.82rem;
 }
 
+.timer-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.timer-settings label {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.timer-settings small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .timer-label {
   margin: 22px 0 0;
   color: #94a3b8;
@@ -537,6 +557,10 @@ textarea:focus {
 
   .metric-grid,
   .library-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .timer-settings {
     grid-template-columns: 1fr;
   }
 }
