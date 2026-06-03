@@ -590,8 +590,7 @@ textarea:focus {
 }
 
 .timer-card--focus .timer-details {
-  justify-items: center;
-  margin-bottom: 0;
+  display: none;
 }
 
 .timer-card--focus .timer-actions {
@@ -721,11 +720,11 @@ textarea:focus {
 
 .movement-tile {
   min-height: 52px;
-  border: 1px solid rgba(248, 250, 252, 0.72);
+  border: 1px solid rgba(244, 63, 94, 0.55);
   border-radius: 20px;
   padding: 10px 12px;
-  color: #f8fafc;
-  background: transparent;
+  color: #fff1f2;
+  background: rgba(244, 63, 94, 0.18);
   font-weight: 900;
   letter-spacing: -0.02em;
   text-align: center;
@@ -737,17 +736,17 @@ textarea:focus {
 }
 
 .movement-tile:hover {
-  color: #ffffff;
-  border-color: #ffffff;
-  background: rgba(255, 255, 255, 0.04);
+  color: #fff7f8;
+  border-color: rgba(244, 63, 94, 0.82);
+  background: rgba(244, 63, 94, 0.24);
 }
 
 .movement-tile.is-active {
-  border-color: #ffffff;
+  border-color: rgba(244, 63, 94, 0.95);
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(244, 63, 94, 0.32);
   box-shadow:
-    0 0 0 3px rgba(255, 255, 255, 0.08),
+    0 0 0 3px rgba(244, 63, 94, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
