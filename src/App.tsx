@@ -350,7 +350,88 @@ function App() {
       });
     }, 1000);
 
-    return (
+    return () => window.clearInterval(intervalId);
+  }, [timerPhase]);
+
+  useEffect(() => {
+    if (timerPhase !== "running") {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setElapsedSeconds((currentSeconds) => {
+        const nextSeconds = Math.min(currentSeconds + 1, workoutDurationSeconds);
+
+        if (nextSeconds >= workoutDurationSeconds) {
+          setTimerPhase("finished");
+        }
+
+        return nextSeconds;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [timerPhase, workoutDurationSeconds]);
+
+  function chooseWorkout(workoutId: string) {
+    setActiveWorkoutId(workoutId);
+    setActiveTab("today");
+  }
+
+  function generateWorkout() {
+    const options = filteredWorkouts.length > 0 ? filteredWorkouts : workouts;
+    const randomIndex = Math.floor(Math.random() * options.length);
+    setActiveWorkoutId(options[randomIndex].id);
+  }
+
+  function resetTimer() {
+    setTimerPhase("idle");
+    setElapsedSeconds(0);
+    setPrepSecondsLeft(prepDurationSeconds);
+  }
+
+  function handleStartPauseTimer() {
+    if (timerPhase === "running") {
+      setTimerPhase("paused");
+      return;
+    }
+
+    if (timerPhase === "paused") {
+      setTimerPhase("running");
+      return;
+    }
+
+    setElapsedSeconds(0);
+    setPrepSecondsLeft(prepDurationSeconds);
+    setTimerPhase("preparing");
+  }
+
+  function updateDurationMinutes(nextDuration: number) {
+    setCustomDurationMinutes(Math.max(1, nextDuration));
+    resetTimer();
+  }
+
+  function updateEmomIntervalMinutes(nextInterval: number) {
+    setEmomIntervalMinutes(Math.max(1, nextInterval));
+    resetTimer();
+  }
+
+  function selectTimerMode(mode: TimerMode) {
+    setActiveTimerMode(mode);
+    resetTimer();
+  }
+
+  function updateWorkoutLog(nextLog: Partial<WorkoutLog>) {
+    setLogs((currentLogs) => ({
+      ...currentLogs,
+      [activeWorkout.id]: {
+        ...currentLog,
+        ...nextLog,
+      },
+    }));
+  }
+
+  return (
     <main className="app-shell">
       <header className="app-header">
         <div>
