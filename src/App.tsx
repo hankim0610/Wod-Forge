@@ -4,7 +4,7 @@ type Focus = "conditioning" | "strength" | "engine" | "skill";
 type WorkoutType = "AMRAP" | "For Time" | "EMOM" | "Strength";
 type TimerMode = Extract<WorkoutType, "AMRAP" | "For Time" | "EMOM">;
 type TimerPhase = "idle" | "preparing" | "running" | "paused" | "finished";
-type AppTab = "today" | "clock" | "library" | "calendar" | "log";
+type AppTab = "today" | "clock" | "library" | "log";
 type Equipment =
   | "bodyweight"
   | "dumbbells"
@@ -200,7 +200,6 @@ const appTabs: Array<{ value: AppTab; label: string; description: string }> = [
   { value: "today", label: "Today", description: "WOD briefing" },
   { value: "clock", label: "Clock", description: "Workout timers" },
   { value: "library", label: "Library", description: "Find workouts" },
-  { value: "calendar", label: "Calendar", description: "Training history" },
   { value: "log", label: "Log", description: "Score and notes" },
 ];
 
@@ -597,7 +596,7 @@ function App() {
       </nav>
 
       {activeTab === "today" && (
-        <section className="tab-panel" aria-labelledby="today-tab">
+        <section className="tab-panel tab-panel--home" aria-labelledby="today-tab">
           <article className="hero__content">
             <p className="eyebrow">Today&apos;s workout</p>
             <h2>Forge your next WOD with intent.</h2>
@@ -663,6 +662,89 @@ function App() {
               {activeWorkout.equipment.map((item) => (
                 <span key={item}>{item}</span>
               ))}
+            </div>
+          </article>
+
+          <article className="calendar-card">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Training calendar</p>
+                <h2>{calendarMonthLabel}</h2>
+              </div>
+              <div className="calendar-actions">
+                <button
+                  className="button button--ghost"
+                  onClick={() => shiftCalendarMonth(-1)}
+                  type="button"
+                >
+                  Prev
+                </button>
+                <button
+                  className="button button--ghost"
+                  onClick={() => shiftCalendarMonth(1)}
+                  type="button"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+
+            <div className="weekly-summary">
+              <span>{workoutsCompletedThisWeek.length}</span>
+              <div>
+                <strong>workouts done this week</strong>
+                <small>
+                  {getDateKey(weekStart)} to {getDateKey(weekEnd)}
+                </small>
+              </div>
+            </div>
+
+            <div className="calendar-month-grid">
+              <div className="calendar-weekdays" aria-hidden="true">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <span key={day}>{day}</span>
+                ))}
+              </div>
+
+              <div className="calendar-grid">
+                {calendarDays.map((date) => {
+                  const dateKey = getDateKey(date);
+                  const dayCompletions = completionsByDate[dateKey] ?? [];
+                  const isCurrentMonth =
+                    date.getMonth() === calendarMonth.getMonth();
+
+                  return (
+                    <div
+                      className={`calendar-day${
+                        isCurrentMonth ? "" : " is-muted"
+                      }${dateKey === todayKey ? " is-today" : ""}${
+                        dayCompletions.length > 0 ? " has-workout" : ""
+                      }`}
+                      key={dateKey}
+                    >
+                      <span>{date.getDate()}</span>
+                      {dayCompletions.length > 0 && (
+                        <small>{dayCompletions.length} WOD</small>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="calendar-list">
+              <h3>Completed workouts</h3>
+              {completedWorkouts.length === 0 ? (
+                <p>No completed workouts yet. Mark a workout complete in Log.</p>
+              ) : (
+                completedWorkouts.map(({ log, workout, workoutId }) => (
+                  <div className="calendar-list-item" key={workoutId}>
+                    <strong>{workout?.name ?? workoutId}</strong>
+                    <span>{log.completedAt}</span>
+                    {log.score && <small>{log.score}</small>}
+                  </div>
+                ))
+              )}
             </div>
           </article>
         </section>
@@ -750,169 +832,6 @@ function App() {
               >
                 Reset
               </button>
-            </div>
-          </article>
-        </section>
-      )}
-
-      {activeTab === "library" && (
-        <section className="tab-panel" id="library" aria-labelledby="library-tab">
-          <section className="controls" aria-label="Workout filters">
-            <label>
-              Focus
-              <select
-                value={selectedFocus}
-                onChange={(event) =>
-                  setSelectedFocus(event.target.value as Focus | "any")
-                }
-              >
-                {focusOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Equipment
-              <select
-                value={selectedEquipment}
-                onChange={(event) =>
-                  setSelectedEquipment(event.target.value as Equipment | "any")
-                }
-              >
-                {equipmentOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <button
-              className="button button--secondary"
-              onClick={generateWorkout}
-              type="button"
-            >
-              Random from filters
-            </button>
-          </section>
-
-          <section className="library">
-            <div className="section-heading">
-              <p className="eyebrow">Workout library</p>
-              <h2>{filteredWorkouts.length || workouts.length} workouts ready</h2>
-            </div>
-
-            <div className="library-grid">
-              {(filteredWorkouts.length > 0 ? filteredWorkouts : workouts).map(
-                (workout) => (
-                  <button
-                    className={`library-card${
-                      workout.id === activeWorkout.id ? " is-active" : ""
-                    }`}
-                    key={workout.id}
-                    onClick={() => chooseWorkout(workout.id)}
-                    type="button"
-                  >
-                    <span>{workout.type}</span>
-                    <strong>{workout.name}</strong>
-                    <small>
-                      {workout.timeCapMinutes} min · {workout.focus}
-                    </small>
-                    <small>{workout.movements.join(" / ")}</small>
-                  </button>
-                ),
-              )}
-            </div>
-          </section>
-        </section>
-      )}
-
-      {activeTab === "calendar" && (
-        <section
-          className="tab-panel tab-panel--narrow"
-          aria-labelledby="calendar-tab"
-        >
-          <article className="calendar-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Training calendar</p>
-                <h2>{calendarMonthLabel}</h2>
-              </div>
-              <div className="calendar-actions">
-                <button
-                  className="button button--ghost"
-                  onClick={() => shiftCalendarMonth(-1)}
-                  type="button"
-                >
-                  Prev
-                </button>
-                <button
-                  className="button button--ghost"
-                  onClick={() => shiftCalendarMonth(1)}
-                  type="button"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-
-            <div className="weekly-summary">
-              <span>{workoutsCompletedThisWeek.length}</span>
-              <div>
-                <strong>workouts done this week</strong>
-                <small>
-                  {getDateKey(weekStart)} to {getDateKey(weekEnd)}
-                </small>
-              </div>
-            </div>
-
-            <div className="calendar-weekdays" aria-hidden="true">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <span key={day}>{day}</span>
-              ))}
-            </div>
-
-            <div className="calendar-grid">
-              {calendarDays.map((date) => {
-                const dateKey = getDateKey(date);
-                const dayCompletions = completionsByDate[dateKey] ?? [];
-                const isCurrentMonth =
-                  date.getMonth() === calendarMonth.getMonth();
-
-                return (
-                  <div
-                    className={`calendar-day${
-                      isCurrentMonth ? "" : " is-muted"
-                    }${dateKey === todayKey ? " is-today" : ""}${
-                      dayCompletions.length > 0 ? " has-workout" : ""
-                    }`}
-                    key={dateKey}
-                  >
-                    <span>{date.getDate()}</span>
-                    {dayCompletions.length > 0 && (
-                      <small>{dayCompletions.length} WOD</small>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="calendar-list">
-              <h3>Completed workouts</h3>
-              {completedWorkouts.length === 0 ? (
-                <p>No completed workouts yet. Mark a workout complete in Log.</p>
-              ) : (
-                completedWorkouts.map(({ log, workout, workoutId }) => (
-                  <div className="calendar-list-item" key={workoutId}>
-                    <strong>{workout?.name ?? workoutId}</strong>
-                    <span>{log.completedAt}</span>
-                    {log.score && <small>{log.score}</small>}
-                  </div>
-                ))
-              )}
             </div>
           </article>
         </section>

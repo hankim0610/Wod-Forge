@@ -77,7 +77,7 @@ a {
   top: env(safe-area-inset-top);
   z-index: 10;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin: 24px 0;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -126,6 +126,10 @@ a {
   width: min(720px, 100%);
   margin: 0 auto;
   grid-template-columns: 1fr;
+}
+
+.tab-panel--home .calendar-card {
+  grid-column: 1 / -1;
 }
 
 .hero {
@@ -579,11 +583,22 @@ textarea:focus {
   font-weight: 800;
 }
 
+.calendar-month-grid {
+  display: grid;
+  gap: 8px;
+  overflow-x: auto;
+}
+
 .calendar-weekdays,
 .calendar-grid {
+  min-width: 560px;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
+}
+
+.calendar-grid {
+  grid-auto-rows: minmax(78px, auto);
 }
 
 .calendar-weekdays span {
@@ -775,7 +790,7 @@ textarea:focus {
   }
 
   .tab-nav {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     border-radius: 22px;
   }
 
@@ -795,6 +810,11 @@ textarea:focus {
 
   .timer-settings {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    min-width: 490px;
   }
 
   .calendar-day {
