@@ -824,18 +824,32 @@ function App() {
             </div>
 
             <div className="movement-grid" aria-label="Strength movements">
-              {strengthLiftOptions.map((lift) => (
-                <button
-                  className={`movement-tile${
-                    selectedStrengthLift === lift ? " is-active" : ""
-                  }`}
-                  key={lift}
-                  onClick={() => setSelectedStrengthLift(lift)}
-                  type="button"
-                >
-                  {lift}
-                </button>
-              ))}
+              {strengthLiftOptions.map((lift) => {
+                const liftRecordCount = strengthRecords.filter(
+                  (record) => record.lift === lift,
+                ).length;
+                const liftBest = heaviestStrengthRecordByLift[lift];
+
+                return (
+                  <button
+                    className={`movement-tile${
+                      selectedStrengthLift === lift ? " is-active" : ""
+                    }`}
+                    key={lift}
+                    onClick={() => setSelectedStrengthLift(lift)}
+                    type="button"
+                  >
+                    <span className="movement-tile__icon">PR</span>
+                    <span className="movement-tile__name">{lift}</span>
+                    <span className="movement-tile__meta">
+                      {liftBest ? `🏆 ${formatStrengthWeight(liftBest)}` : "No PR yet"}
+                    </span>
+                    {liftRecordCount > 0 && (
+                      <span className="movement-tile__count">{liftRecordCount}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             <div className="pr-detail-header">
