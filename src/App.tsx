@@ -205,20 +205,6 @@ const workoutStyleOptions: Array<{
   },
 ];
 
-const libraryEquipmentOptions: Array<{ value: Equipment; label: string }> = [
-  { value: "bodyweight", label: "Bodyweight" },
-  { value: "dumbbells", label: "Dumbbells" },
-  { value: "barbell", label: "Barbell" },
-  { value: "kettlebell", label: "Kettlebell" },
-  { value: "rower", label: "Rower" },
-  { value: "jump rope", label: "Jump rope" },
-  { value: "ski erg", label: "Ski erg" },
-  { value: "sled", label: "Sled" },
-  { value: "wall ball", label: "Wall ball" },
-  { value: "box", label: "Box" },
-  { value: "pull-up bar", label: "Pull-up bar" },
-];
-
 const timerModes: Array<{
   value: TimerMode;
   label: string;
@@ -265,6 +251,7 @@ const strengthLiftOptions = [
 
 const prepDurationSeconds = 10;
 const logStorageKey = "wod-forge-log";
+const customWorkoutsStorageKey = "wod-forge-custom-workouts";
 const strengthRecordsStorageKey = "wod-forge-strength-prs";
 
 function formatTime(totalSeconds: number) {
@@ -324,6 +311,15 @@ function getInitialLog(): Record<string, WorkoutLog> {
   }
 }
 
+function getInitialCustomWorkouts(): Workout[] {
+  try {
+    const savedWorkouts = window.localStorage.getItem(customWorkoutsStorageKey);
+    return savedWorkouts ? JSON.parse(savedWorkouts) : [];
+  } catch {
+    return [];
+  }
+}
+
 function getInitialStrengthRecords(): StrengthPR[] {
   try {
     const savedRecords = window.localStorage.getItem(strengthRecordsStorageKey);
@@ -341,129 +337,14 @@ function formatStrengthWeight(record: StrengthPR) {
   return `${record.weight} ${record.unit}`;
 }
 
-const generatedWorkoutTemplates: Workout[] = [
-  {
-    id: "hyrox-engine-builder",
-    name: "Hyrox Engine Builder",
-    type: "For Time",
-    timeCapMinutes: 28,
-    focus: "engine",
-    intensity: "hard",
-    style: "hyrox",
-    equipment: ["rower", "sled", "wall ball", "kettlebell"],
-    movements: ["Row", "Sled push", "Farmers carry", "Wall balls"],
-    workout: [
-      "800 meter run",
-      "750 meter row",
-      "40 meter sled push",
-      "100 meter farmers carry",
-      "50 wall balls",
-    ],
-    coachingCue: "Keep the run controlled so the stations stay unbroken or close to it.",
-    scaling: "Generated Hyrox-style station workout.",
-  },
-  {
-    id: "crossfit-classic-mix",
-    name: "CrossFit Classic Mix",
-    type: "AMRAP",
-    timeCapMinutes: 18,
-    focus: "conditioning",
-    intensity: "hard",
-    style: "crossfit",
-    equipment: ["barbell", "pull-up bar", "jump rope"],
-    movements: ["Power cleans", "Pull-ups", "Double-unders"],
-    workout: [
-      "8 power cleans",
-      "10 pull-ups",
-      "40 double-unders",
-      "12 burpees",
-    ],
-    coachingCue: "Pick small sets early and keep transitions tight.",
-    scaling: "Generated CrossFit-style mixed modal workout.",
-  },
-  {
-    id: "strength-total-builder",
-    name: "Strength Total Builder",
-    type: "Strength",
-    timeCapMinutes: 30,
-    focus: "strength",
-    intensity: "moderate",
-    style: "strength",
-    equipment: ["barbell", "dumbbells", "box"],
-    movements: ["Back squat", "Dumbbell rows", "Box step-ups"],
-    workout: [
-      "Every 5 minutes for 5 rounds:",
-      "5 back squats",
-      "10 dumbbell rows per side",
-      "12 box step-ups",
-    ],
-    coachingCue: "Move with quality and add load only when every rep looks the same.",
-    scaling: "Generated strength-focused session.",
-  },
-];
-
-const movementSubstitutions: Array<{
-  equipment: Equipment;
-  patterns: string[];
-  replacement: string;
-  movement: string;
-}> = [
-  { equipment: "rower", patterns: ["row"], replacement: "run", movement: "Run" },
-  { equipment: "ski erg", patterns: ["ski erg"], replacement: "run", movement: "Run" },
-  { equipment: "sled", patterns: ["sled push", "sled pull"], replacement: "bear crawl", movement: "Bear crawl" },
-  { equipment: "wall ball", patterns: ["wall balls", "wall ball"], replacement: "squat jumps", movement: "Squat jumps" },
-  { equipment: "kettlebell", patterns: ["kettlebell", "farmers carry"], replacement: "backpack", movement: "Loaded backpack work" },
-  { equipment: "barbell", patterns: ["power cleans", "back squats", "back squat", "barbell"], replacement: "dumbbell", movement: "Dumbbell variation" },
-  { equipment: "dumbbells", patterns: ["dumbbell", "dumbbells"], replacement: "backpack", movement: "Backpack variation" },
-  { equipment: "jump rope", patterns: ["double-unders", "single-unders", "jump rope"], replacement: "line hops", movement: "Line hops" },
-  { equipment: "pull-up bar", patterns: ["pull-ups", "pull-up"], replacement: "bent-over backpack rows", movement: "Bent-over backpack rows" },
-  { equipment: "box", patterns: ["box step-ups", "box step-overs", "box"], replacement: "reverse lunges", movement: "Reverse lunges" },
-];
-
-function adaptWorkoutToEquipment(
-  template: Workout,
-  availableEquipment: Equipment[],
-): Workout {
-  const missingEquipment = template.equipment.filter(
-    (item) => item !== "bodyweight" && !availableEquipment.includes(item),
-  );
-  const substitutions = movementSubstitutions.filter((substitution) =>
-    missingEquipment.includes(substitution.equipment),
-  );
-
-  if (substitutions.length === 0) {
-    return template;
-  }
-
-  function adaptText(value: string) {
-    return substitutions.reduce((currentValue, substitution) => {
-      return substitution.patterns.reduce((nextValue, pattern) => {
-        return nextValue.replace(new RegExp(pattern, "gi"), substitution.replacement);
-      }, currentValue);
-    }, value);
-  }
-
-  const movementSet = new Set(template.movements.map(adaptText));
-  substitutions.forEach((substitution) => movementSet.add(substitution.movement));
-
-  return {
-    ...template,
-    id: `${template.id}-adapted-${Date.now()}`,
-    name: `${template.name} (Adapted)`,
-    equipment: template.equipment.filter((item) => availableEquipment.includes(item)),
-    movements: Array.from(movementSet),
-    workout: template.workout.map(adaptText),
-    scaling: `Auto-adapted for missing equipment: ${missingEquipment.join(", ")}.`,
-  };
-}
-
 function App() {
   const [selectedWorkoutStyle, setSelectedWorkoutStyle] =
     useState<WorkoutStyle>("crossfit");
-  const [availableLibraryEquipment, setAvailableLibraryEquipment] = useState<
-    Equipment[]
-  >(["bodyweight", "dumbbells", "rower"]);
-  const [generatedWorkouts, setGeneratedWorkouts] = useState<Workout[]>([]);
+  const [customWorkoutName, setCustomWorkoutName] = useState("");
+  const [customWorkoutText, setCustomWorkoutText] = useState("");
+  const [customWorkouts, setCustomWorkouts] = useState<Workout[]>(
+    getInitialCustomWorkouts,
+  );
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
@@ -489,23 +370,15 @@ function App() {
   );
   const [emomIntervalMinutes, setEmomIntervalMinutes] = useState(1);
   const allWorkouts = useMemo(
-    () => [...generatedWorkouts, ...workouts],
-    [generatedWorkouts],
+    () => [...customWorkouts, ...workouts],
+    [customWorkouts],
   );
   const activeWorkout =
     allWorkouts.find((workout) => workout.id === activeWorkoutId) ?? workouts[0];
 
-  const styleWorkouts = useMemo(() => {
-    return workouts.filter((workout) => workout.style === selectedWorkoutStyle);
-  }, [selectedWorkoutStyle]);
-  const recommendedWorkouts = useMemo(() => {
-    return [
-      ...generatedWorkouts.filter(
-        (workout) => workout.style === selectedWorkoutStyle,
-      ),
-      ...styleWorkouts,
-    ];
-  }, [generatedWorkouts, selectedWorkoutStyle, styleWorkouts]);
+  const selectedWorkoutStyleOption = workoutStyleOptions.find(
+    (style) => style.value === selectedWorkoutStyle,
+  );
 
   const currentLog = logs[activeWorkout.id] ?? {
     completed: false,
@@ -580,7 +453,7 @@ function App() {
   }, {});
   const strengthRecordCount = strengthRecords.length;
   const availableEquipmentCount = new Set(
-    [...workouts, ...generatedWorkoutTemplates].flatMap((workout) => workout.equipment),
+    workouts.flatMap((workout) => workout.equipment),
   ).size;
   const sanitizedDurationMinutes = Math.max(1, customDurationMinutes);
   const sanitizedEmomIntervalMinutes = Math.max(1, emomIntervalMinutes);
@@ -634,6 +507,13 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(logStorageKey, JSON.stringify(logs));
   }, [logs]);
+
+  useEffect(() => {
+    window.localStorage.setItem(
+      customWorkoutsStorageKey,
+      JSON.stringify(customWorkouts),
+    );
+  }, [customWorkouts]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -704,33 +584,40 @@ function App() {
     setActiveTab("today");
   }
 
-  function toggleLibraryEquipment(equipment: Equipment) {
-    setAvailableLibraryEquipment((currentEquipment) =>
-      currentEquipment.includes(equipment)
-        ? currentEquipment.filter((item) => item !== equipment)
-        : [...currentEquipment, equipment],
-    );
-  }
+  function saveCustomWorkout() {
+    const workoutLines = customWorkoutText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
 
-  function generateWorkoutFromStyle() {
-    const templates = generatedWorkoutTemplates.filter(
-      (workout) => workout.style === selectedWorkoutStyle,
-    );
-    const sourceWorkouts = templates.length > 0 ? templates : styleWorkouts;
-    const template = sourceWorkouts[Math.floor(Math.random() * sourceWorkouts.length)];
-    const adaptedWorkout = adaptWorkoutToEquipment(
-      template,
-      availableLibraryEquipment,
-    );
+    if (workoutLines.length === 0) {
+      return;
+    }
+
+    const isStrength = selectedWorkoutStyle === "strength";
     const nextWorkout: Workout = {
-      ...adaptedWorkout,
-      id: `generated-${selectedWorkoutStyle}-${Date.now()}`,
-      name: adaptedWorkout.name.includes("Generated")
-        ? adaptedWorkout.name
-        : `${adaptedWorkout.name} (Generated)`,
+      id: `custom-${selectedWorkoutStyle}-${Date.now()}`,
+      name: customWorkoutName.trim() || `${selectedWorkoutStyleOption?.label ?? "Custom"} WOD`,
+      type: isStrength ? "Strength" : selectedWorkoutStyle === "crossfit" ? "AMRAP" : "For Time",
+      timeCapMinutes: isStrength ? 30 : selectedWorkoutStyle === "hyrox" ? 35 : 15,
+      focus: isStrength ? "strength" : selectedWorkoutStyle === "hyrox" ? "engine" : "conditioning",
+      intensity: isStrength ? "moderate" : "hard",
+      style: selectedWorkoutStyle,
+      equipment: ["bodyweight"],
+      movements: workoutLines,
+      workout: workoutLines,
+      coachingCue: "Custom workout saved from Library.",
+      scaling: "Adjust reps, load, or movement difficulty as needed.",
     };
 
-    setGeneratedWorkouts((currentWorkouts) => [nextWorkout, ...currentWorkouts]);
+    setCustomWorkouts((currentWorkouts) => [nextWorkout, ...currentWorkouts]);
+    setActiveWorkoutId(nextWorkout.id);
+    setActiveTimerMode(getWorkoutTimerMode(nextWorkout.type));
+    setCustomDurationMinutes(nextWorkout.timeCapMinutes);
+    resetTimer();
+    setCustomWorkoutName("");
+    setCustomWorkoutText("");
+    setActiveTab("today");
   }
 
   function resetTimer() {
@@ -1084,7 +971,7 @@ function App() {
             <div className="section-heading">
               <div>
                 <p className="eyebrow">Workout library</p>
-                <h2>Generate a workout</h2>
+                <h2>Choose workout style</h2>
               </div>
             </div>
 
@@ -1102,77 +989,46 @@ function App() {
                   </option>
                 ))}
               </select>
-              <small>
-                {
-                  workoutStyleOptions.find(
-                    (style) => style.value === selectedWorkoutStyle,
-                  )?.description
-                }
-              </small>
+              <small>{selectedWorkoutStyleOption?.description}</small>
             </label>
+          </article>
 
-            <div className="library-section-spacer" />
-
-            <div className="equipment-picker">
+          <article className="custom-wod-card">
+            <div className="section-heading">
               <div>
-                <p className="eyebrow">Available equipment</p>
-                <h3>Tap what you have</h3>
-                <p>
-                  If equipment is missing, Wod Forge automatically swaps those
-                  movements for available alternatives.
-                </p>
-              </div>
-              <div className="equipment-checkbox-grid">
-                {libraryEquipmentOptions.map((equipment) => (
-                  <label className="equipment-checkbox" key={equipment.value}>
-                    <input
-                      checked={availableLibraryEquipment.includes(equipment.value)}
-                      onChange={() => toggleLibraryEquipment(equipment.value)}
-                      type="checkbox"
-                    />
-                    <span>{equipment.label}</span>
-                  </label>
-                ))}
+                <p className="eyebrow">Custom WOD</p>
+                <h2>Write today&apos;s workout</h2>
               </div>
             </div>
+
+            <label>
+              Workout name
+              <input
+                value={customWorkoutName}
+                onChange={(event) => setCustomWorkoutName(event.target.value)}
+                placeholder={`${selectedWorkoutStyleOption?.label ?? "Custom"} WOD`}
+              />
+            </label>
+
+            <label>
+              WOD details
+              <textarea
+                className="custom-wod-input"
+                value={customWorkoutText}
+                onChange={(event) => setCustomWorkoutText(event.target.value)}
+                placeholder={"Example:\n800m run\n40 wall balls\n20 burpees"}
+              />
+            </label>
 
             <button
               className="button button--primary"
-              onClick={generateWorkoutFromStyle}
+              disabled={customWorkoutText.trim().length === 0}
+              onClick={saveCustomWorkout}
               type="button"
             >
-              Generate {workoutStyleOptions.find((style) => style.value === selectedWorkoutStyle)?.label} workout
+              Save to Today
             </button>
           </article>
-
-          <section className="library">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Recommended workouts</p>
-                <h2>{recommendedWorkouts.length} options</h2>
-              </div>
-            </div>
-
-            <div className="library-grid">
-              {recommendedWorkouts.map((workout) => (
-                <button
-                  className={`library-card${
-                    workout.id === activeWorkout.id ? " is-active" : ""
-                  }`}
-                  key={workout.id}
-                  onClick={() => chooseWorkout(workout.id)}
-                  type="button"
-                >
-                  <span>{workout.style}</span>
-                  <strong>{workout.name}</strong>
-                  <small>
-                    {workout.timeCapMinutes} min · {workout.type}
-                  </small>
-                  <small>{workout.movements.join(" / ")}</small>
-                </button>
-              ))}
-            </div>
-          </section>
         </section>
       )}
 
