@@ -700,36 +700,34 @@ function App() {
             </div>
 
             <div className="calendar-month-grid">
-              <div className="calendar-weekdays" aria-hidden="true">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                  <span key={day}>{day}</span>
-                ))}
-              </div>
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                <div className="calendar-weekday" key={day} aria-hidden="true">
+                  {day}
+                </div>
+              ))}
 
-              <div className="calendar-grid">
-                {calendarDays.map((date) => {
-                  const dateKey = getDateKey(date);
-                  const dayCompletions = completionsByDate[dateKey] ?? [];
-                  const isCurrentMonth =
-                    date.getMonth() === calendarMonth.getMonth();
+              {calendarDays.map((date) => {
+                const dateKey = getDateKey(date);
+                const dayCompletions = completionsByDate[dateKey] ?? [];
+                const isCurrentMonth =
+                  date.getMonth() === calendarMonth.getMonth();
 
-                  return (
-                    <div
-                      className={`calendar-day${
-                        isCurrentMonth ? "" : " is-muted"
-                      }${dateKey === todayKey ? " is-today" : ""}${
-                        dayCompletions.length > 0 ? " has-workout" : ""
-                      }`}
-                      key={dateKey}
-                    >
-                      <span>{date.getDate()}</span>
-                      {dayCompletions.length > 0 && (
-                        <small>{dayCompletions.length} WOD</small>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                return (
+                  <div
+                    className={`calendar-day${
+                      isCurrentMonth ? "" : " is-muted"
+                    }${dateKey === todayKey ? " is-today" : ""}${
+                      dayCompletions.length > 0 ? " has-workout" : ""
+                    }`}
+                    key={dateKey}
+                  >
+                    <span>{date.getDate()}</span>
+                    {dayCompletions.length > 0 && (
+                      <small>{dayCompletions.length} WOD</small>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="calendar-list">
