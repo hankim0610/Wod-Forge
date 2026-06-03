@@ -272,23 +272,6 @@ function getStartOfWeek(date: Date) {
   return start;
 }
 
-function getCalendarDays(monthDate: Date) {
-  const firstOfMonth = new Date(
-    monthDate.getFullYear(),
-    monthDate.getMonth(),
-    1,
-  );
-  const firstGridDate = new Date(firstOfMonth);
-  firstGridDate.setDate(firstGridDate.getDate() - firstGridDate.getDay());
-
-  return Array.from({ length: 42 }, (_, index) => {
-    const date = new Date(firstGridDate);
-    date.setDate(firstGridDate.getDate() + index);
-
-    return date;
-  });
-}
-
 function getInitialLog(): Record<string, WorkoutLog> {
   try {
     const savedLog = window.localStorage.getItem(logStorageKey);
@@ -333,9 +316,6 @@ function App() {
     useState<Equipment | "any">("any");
   const [activeWorkoutId, setActiveWorkoutId] = useState(workouts[0].id);
   const [activeTab, setActiveTab] = useState<AppTab>("today");
-  const [calendarMonth, setCalendarMonth] = useState(
-    () => new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-  );
   const [logs, setLogs] = useState<Record<string, WorkoutLog>>(getInitialLog);
   const [strengthRecords, setStrengthRecords] = useState<StrengthPR[]>(
     getInitialStrengthRecords,
@@ -418,12 +398,6 @@ function App() {
     const completedDate = new Date(`${log.completedAt}T00:00:00`);
     return completedDate >= weekStart && completedDate <= weekEnd;
   });
-  const calendarDays = getCalendarDays(calendarMonth);
-  const calendarMonthLabel = calendarMonth.toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-
   const completedCount = completedWorkouts.length;
   const sortedStrengthRecords = [...strengthRecords].sort((a, b) => {
     const dateSort = b.date.localeCompare(a.date);
@@ -657,17 +631,6 @@ function App() {
     });
   }
 
-  function shiftCalendarMonth(monthDelta: number) {
-    setCalendarMonth(
-      (currentMonth) =>
-        new Date(
-          currentMonth.getFullYear(),
-          currentMonth.getMonth() + monthDelta,
-          1,
-        ),
-    );
-  }
-
   return (
     <main className="app-shell">
       <header className="app-header">
@@ -754,123 +717,6 @@ function App() {
               >
                 Open clock
               </button>
-            </div>
-          </article>
-
-          <article className="workout-panel">
-            <div className="section-heading">
-              <p className="eyebrow">Workout briefing</p>
-              <h2>{activeWorkout.name}</h2>
-            </div>
-
-            <div className="tag-row">
-              <span>{activeWorkout.type}</span>
-              <span>{activeWorkout.focus}</span>
-              <span>{activeWorkout.intensity}</span>
-              <span>{activeWorkout.timeCapMinutes} min cap</span>
-            </div>
-
-            <ol className="workout-steps">
-              {activeWorkout.workout.map((step) => (
-                <li key={step}>{step}</li>
-              ))}
-            </ol>
-
-            <div className="coach-note">
-              <h3>Coach&apos;s cue</h3>
-              <p>{activeWorkout.coachingCue}</p>
-            </div>
-
-            <div className="coach-note coach-note--muted">
-              <h3>Scaling option</h3>
-              <p>{activeWorkout.scaling}</p>
-            </div>
-
-            <div className="equipment-list">
-              {activeWorkout.equipment.map((item) => (
-                <span key={item}>{item}</span>
-              ))}
-            </div>
-          </article>
-
-          <article className="calendar-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">Training calendar</p>
-                <h2>{calendarMonthLabel}</h2>
-              </div>
-              <div className="calendar-actions">
-                <button
-                  className="button button--ghost"
-                  onClick={() => shiftCalendarMonth(-1)}
-                  type="button"
-                >
-                  Prev
-                </button>
-                <button
-                  className="button button--ghost"
-                  onClick={() => shiftCalendarMonth(1)}
-                  type="button"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-
-            <div className="weekly-summary">
-              <span>{workoutsCompletedThisWeek.length}</span>
-              <div>
-                <strong>workouts done this week</strong>
-                <small>
-                  {getDateKey(weekStart)} to {getDateKey(weekEnd)}
-                </small>
-              </div>
-            </div>
-
-            <div className="calendar-month-grid">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div className="calendar-weekday" key={day} aria-hidden="true">
-                  {day}
-                </div>
-              ))}
-
-              {calendarDays.map((date) => {
-                const dateKey = getDateKey(date);
-                const dayCompletions = completionsByDate[dateKey] ?? [];
-                const isCurrentMonth =
-                  date.getMonth() === calendarMonth.getMonth();
-
-                return (
-                  <div
-                    className={`calendar-day${
-                      isCurrentMonth ? "" : " is-muted"
-                    }${dateKey === todayKey ? " is-today" : ""}${
-                      dayCompletions.length > 0 ? " has-workout" : ""
-                    }`}
-                    key={dateKey}
-                  >
-                    <span>{date.getDate()}</span>
-                    {dayCompletions.length > 0 && (
-                      <small>{dayCompletions.length} WOD</small>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="calendar-list">
-              <h3>Completed workouts</h3>
-              {completedWorkouts.length === 0 ? (
-                <p>No completed workouts yet. Mark a workout complete in Log.</p>
-              ) : (
-                completedWorkouts.map(({ log, workout, workoutId }) => (
-                  <div className="calendar-list-item" key={workoutId}>
-                    <strong>{workout?.name ?? workoutId}</strong>
-                    <span>{log.completedAt}</span>
-                    {log.score && <small>{log.score}</small>}
-                  </div>
-                ))
-              )}
             </div>
           </article>
         </section>
